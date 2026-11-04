@@ -207,6 +207,30 @@ foreach ($view in 'CLSID', 'WOW6432Node\CLSID') {   # 64-bit and 32-bit registry
     Add-Finding 'RED' '2' "HKCU 有惡意 COM 劫持項目（$view，指向 $(if ($v) { $v } else { '（無 dll 值）' })）" "HKCU\Software\Classes\$view\$clsid"
   }
 }
+# Generic variant (X, IOCS.md): any other HKCU CLSID whose in-process server sits where the known dll sits.
+# Same logic in Remediate-K2F.ps1 (Get-SuspectComServer); change both together.
+function Get-SuspectComServer([string]$Path) {
+  if (-not $Path) { return $null }
+  $p = [Environment]::ExpandEnvironmentVariables($Path.Trim('"'))
+  $dir = Split-Path $p -Parent
+  if ((Split-Path $dir -Leaf) -match '^[0-9a-fA-F]{64}$' -and (Split-Path (Split-Path $dir -Parent) -Leaf) -eq 'PlatformExperienceHelper') {
+    return 'PlatformExperienceHelper\<64 碼> 資料夾'
+  }
+  if ($p -notlike '*\User Data\*') { return $null }
+  if (-not (Test-Path -LiteralPath $p -PathType Leaf)) { return '瀏覽器 User Data 底下（檔案已不在）' }
+  $sig = Get-AuthenticodeSignature -LiteralPath $p
+  if ($sig.Status -eq 'Valid') { return $null }
+  return '瀏覽器 User Data 底下、沒有有效簽章'
+}
+foreach ($view in 'CLSID', 'WOW6432Node\CLSID') {
+  foreach ($k in Get-ChildItem "HKCU:\Software\Classes\$view" -Force) {
+    if ($k.PSChildName -ieq $clsid) { continue }   # reported above
+    $v = [string](Get-ItemProperty (Join-Path $k.PSPath 'InprocServer32')).'(default)'
+    $why = Get-SuspectComServer $v
+    if ($why) { Add-Finding 'RED' '2' "HKCU 有疑似變種的 COM 劫持項目（$view，dll 在$why：$v）" "HKCU\Software\Classes\$view\$($k.PSChildName)" }
+  }
+}
+[void]$checked.Add('HKCU\Software\Classes\CLSID\* (generic)')
 # Chrome is the documented target (G, B, H). The other Chromium browsers are checked the same way as an
 # inferred extension (hamzzi cleaner v3.8 checks them too; no public sample shows the dll there).
 $peHits = @()

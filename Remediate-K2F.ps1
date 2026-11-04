@@ -118,6 +118,40 @@ foreach ($view in 'CLSID', 'WOW6432Node\CLSID') {   # 64-bit and 32-bit registry
   Do-It "匯出 $key 到隔離區" { Ensure-Dir $Quarantine; & reg.exe export $key $regFile /y | Out-Null; if ($LASTEXITCODE) { throw "reg export exit $LASTEXITCODE" } }
   Do-It "刪除登錄項 $key（HKLM 同名項是 Windows 正常的，不動）" { Remove-Item "HKCU:\Software\Classes\$view\$clsid" -Recurse -Force -ErrorAction Stop }
 }
+# Generic variant: other HKCU CLSIDs whose in-process server sits where the known dll sits.
+# Same logic in Check-K2F.ps1 (Get-SuspectComServer); change both together.
+function Get-SuspectComServer([string]$Path) {
+  if (-not $Path) { return $null }
+  $p = [Environment]::ExpandEnvironmentVariables($Path.Trim('"'))
+  $dir = Split-Path $p -Parent
+  if ((Split-Path $dir -Leaf) -match '^[0-9a-fA-F]{64}$' -and (Split-Path (Split-Path $dir -Parent) -Leaf) -eq 'PlatformExperienceHelper') {
+    return 'PlatformExperienceHelper\<64 碼> 資料夾'
+  }
+  if ($p -notlike '*\User Data\*') { return $null }
+  if (-not (Test-Path -LiteralPath $p -PathType Leaf)) { return '瀏覽器 User Data 底下（檔案已不在）' }
+  $sig = Get-AuthenticodeSignature -LiteralPath $p
+  if ($sig.Status -eq 'Valid') { return $null }
+  return '瀏覽器 User Data 底下、沒有有效簽章'
+}
+foreach ($view in 'CLSID', 'WOW6432Node\CLSID') {
+  foreach ($k in Get-ChildItem "HKCU:\Software\Classes\$view" -Force) {
+    if ($k.PSChildName -ieq $clsid) { continue }
+    $v = [string](Get-ItemProperty (Join-Path $k.PSPath 'InprocServer32')).'(default)'
+    $why = Get-SuspectComServer $v
+    if (-not $why) { continue }
+    $foundKey = $true
+    $key = "HKCU\Software\Classes\$view\$($k.PSChildName)"
+    $regFile = Join-Path $Quarantine ('hkcu-' + ($view -replace '\\', '-').ToLower() + '-' + $k.PSChildName.Trim('{}') + '.reg')
+    Do-It "匯出疑似變種 $key（dll 在$why）到隔離區" { Ensure-Dir $Quarantine; & reg.exe export $key $regFile /y | Out-Null; if ($LASTEXITCODE) { throw "reg export exit $LASTEXITCODE" } }
+    Do-It "刪除登錄項 $key" { Remove-Item "HKCU:\Software\Classes\$view\$($k.PSChildName)" -Recurse -Force -ErrorAction Stop }
+    # Step 3 moves only platform_experience_helper.dll* inside PlatformExperienceHelper\<64-hex>; any other target is moved here.
+    $dll = [Environment]::ExpandEnvironmentVariables($v.Trim('"'))
+    if ((Test-Path -LiteralPath $dll -PathType Leaf) -and $dll -notmatch '\\PlatformExperienceHelper\\[0-9a-fA-F]{64}\\platform_experience_helper\.dll[^\\]*$') {
+      $dest = Join-Path $Quarantine ('com-dll\' + $k.PSChildName.Trim('{}') + '-' + (Split-Path $dll -Leaf) + '.quarantined')
+      Do-It "隔離 $dll" { Ensure-Dir (Split-Path $dest); Move-Item -LiteralPath $dll -Destination $dest -Force -ErrorAction Stop }
+    }
+  }
+}
 if (-not $foundKey) { Write-Host '  沒有這個登錄項' }
 if (@($profiles | Where-Object { -not $_.Current }).Count) { Write-Host '  其他使用者的登錄要用該帳號登入再跑一次。' -ForegroundColor DarkGray }
 
