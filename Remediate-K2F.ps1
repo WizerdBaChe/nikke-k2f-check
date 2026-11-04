@@ -80,13 +80,15 @@ if (-not $InstallPath) {
 $ErrorActionPreference = 'Continue'
 $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 $pending = New-Object System.Collections.ArrayList
+# Every action, in order, for the one-screen summary at the end (Ok = $null in dry-run).
+$plan = New-Object System.Collections.ArrayList
 
 function Step([string]$Msg) { Write-Host ''; Write-Host "== $Msg" -ForegroundColor Cyan }
 function Do-It([string]$Desc, [scriptblock]$Action) {
   if ($Apply) {
-    try { & $Action; Write-Host "  [done] $Desc" -ForegroundColor Green }
-    catch { Write-Host "  [fail] $Desc -- $($_.Exception.Message)" -ForegroundColor Red; [void]$pending.Add($Desc) }
-  } else { Write-Host "  [would] $Desc" -ForegroundColor Yellow }
+    try { & $Action; Write-Host "  [done] $Desc" -ForegroundColor Green; [void]$plan.Add([pscustomobject]@{ Desc = $Desc; Ok = $true }) }
+    catch { Write-Host "  [fail] $Desc -- $($_.Exception.Message)" -ForegroundColor Red; [void]$pending.Add($Desc); [void]$plan.Add([pscustomobject]@{ Desc = $Desc; Ok = $false }) }
+  } else { Write-Host "  [would] $Desc" -ForegroundColor Yellow; [void]$plan.Add([pscustomobject]@{ Desc = $Desc; Ok = $null }) }
 }
 function Ensure-Dir([string]$p) { if (-not (Test-Path $p)) { New-Item -ItemType Directory -Path $p -Force | Out-Null } }
 
@@ -259,6 +261,27 @@ if (-not $isAdmin) {
   }
 }
 
+# One-screen summary: everything this run would do (dry-run) or did (-Apply), numbered.
+Write-Host ''
+if (-not $plan.Count) {
+  Write-Host '== 總結：沒有要清除或封鎖的東西' -ForegroundColor Green
+} else {
+  if ($Apply) {
+    $okN = @($plan | Where-Object { $_.Ok }).Count
+    Write-Host "== 總結：做了 $($plan.Count) 件事，成功 $okN 件，失敗 $($plan.Count - $okN) 件" -ForegroundColor Cyan
+  } else {
+    Write-Host "== 總結：照這份清單會做 $($plan.Count) 件事（現在都還沒做）" -ForegroundColor Cyan
+  }
+  $i = 0
+  foreach ($p in $plan) {
+    $i++
+    $mark = if ($p.Ok -eq $true) { '[完成] ' } elseif ($p.Ok -eq $false) { '[失敗] ' } else { '' }
+    $color = if ($p.Ok -eq $false) { 'Red' } else { 'White' }
+    Write-Host ('  {0,2}. {1}{2}' -f $i, $mark, $p.Desc) -ForegroundColor $color
+  }
+  Write-Host "  搬走的東西都在隔離區 $Quarantine，沒有刪除，可以搬回去還原。" -ForegroundColor DarkGray
+  Write-Host '  不會動：遊戲本體、瀏覽器本身、書籤與你的其他檔案。' -ForegroundColor DarkGray
+}
 Write-Host ''
 if ($pending) { Write-Host "未完成：$($pending -join '; ')" -ForegroundColor Yellow }
 Write-Host '腳本做不到的部分：改密碼、撤銷 token/API key、換錢包。請照 README 的清單，用手機或另一台乾淨裝置處理。' -ForegroundColor Red
