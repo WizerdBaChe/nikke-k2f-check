@@ -4,7 +4,9 @@
 
 - Purpose: detect and contain the 2026 NIKKE PC launcher supply-chain malware (K2F RAT, C2 `insightjs.com`) on Windows.
 - Four PowerShell 5.1 scripts at the repo root. Two are read-only (`Check-K2F.ps1`, `Sweep-Persistence.ps1`), one sends HEAD requests only (`Test-CdnFiles.ps1`), one changes the system (`Remediate-K2F.ps1`, dry-run unless `-Apply`).
-- `Remediate-K2F.ps1 -Apply` stops processes, deletes one HKCU registry key (after exporting it), moves files into `%USERPROFILE%\nikke-k2f-quarantine-<timestamp>`, edits `hosts` and adds a firewall rule (the last two need an elevated shell). It deletes no files.
+- `Remediate-K2F.ps1 -Apply` stops processes, deletes the HKCU COM hijack key in the 64- and 32-bit views (after exporting each), moves files into `%USERPROFILE%\nikke-k2f-quarantine-<timestamp>`, edits `hosts` and adds or rebuilds a firewall rule (the last two need an elevated shell). It deletes no files.
+- Both `Check-K2F.ps1` and `Remediate-K2F.ps1` cover the current user plus every readable profile under `C:\Users` (launcher cache, browser folders, TEMP); other users' HKCU is not reachable from one account.
+- `tests/Run-FixtureTests.ps1` runs fixture tests (one positive and one negative case per check); it creates and then removes one HKCU key.
 - Every indicator and its source is in `docs/FACTS.md`; verdict logic and verification are in `docs/DEVELOPER.md`.
 - `Check-K2F.ps1` exit codes: 3 infected with live components, 2 infected with history only, 1 contact, 0 nothing known.
 - Stage-2 checks read HKCU and `%LOCALAPPDATA%`. If your shell runs inside a packaged (MSIX) app, those views can be virtualized and differ from the user's own shell; then ask the user to run the script in their own PowerShell window and paste the output.

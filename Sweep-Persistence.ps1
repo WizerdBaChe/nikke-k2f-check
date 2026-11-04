@@ -258,5 +258,20 @@ if ($newFiles) {
 }
 Write-Host ''
 Write-Host '這份掃描只列線索，不做判定。認不得的項目：先用 Microsoft 的 Autoruns 看細節，再上傳 VirusTotal 查。' -ForegroundColor Yellow
-Write-Host '接著建議跑 Defender 完整掃描與離線掃描：Start-MpScan -ScanType FullScan ； Start-MpWDOScan' -ForegroundColor Yellow
+# Offline scan advice: Start-MpWDOScan reboots into the Defender scan, which does nothing when Defender is not the
+# active antivirus or the recovery environment (WinRE) is off, and may ask for the BitLocker recovery key.
+$avMode = ''; try { $avMode = [string](Get-MpComputerStatus -ErrorAction Stop).AMRunningMode } catch {}
+$winre = ''; try { $winre = [string]([xml](Get-Content "$env:SystemRoot\System32\Recovery\ReAgent.xml" -Raw -ErrorAction Stop)).WindowsRE.InstallState.state } catch {}
+$bitlocker = ''; try { $bitlocker = [string](Get-BitLockerVolume -MountPoint $env:SystemDrive -ErrorAction Stop).ProtectionStatus } catch {}   # needs an elevated window
+Write-Host '接著建議跑 Defender 完整掃描：Start-MpScan -ScanType FullScan' -ForegroundColor Yellow
+if ($avMode -and $avMode -ne 'Normal') {
+  Write-Host "  Defender 目前不是主要防毒（模式：$avMode），離線掃描不會執行；請用你正在用的防毒軟體做一次完整掃描。" -ForegroundColor Yellow
+} elseif ($winre -eq '0') {
+  Write-Host '  這台電腦的 Windows 復原環境（WinRE）已關閉，離線掃描無法執行；做完整掃描就好。' -ForegroundColor Yellow
+} elseif ($bitlocker -eq 'On') {
+  Write-Host '  系統碟開了 BitLocker，離線掃描重開機時可能要求復原金鑰。手邊有金鑰再跑 Start-MpWDOScan，沒有就只做完整掃描。' -ForegroundColor Yellow
+} else {
+  Write-Host '  再加一次離線掃描（會重開機、約 15 分鐘，先存檔）：Start-MpWDOScan' -ForegroundColor Yellow
+  if (-not $bitlocker) { Write-Host '  沒辦法確認 BitLocker 狀態（要系統管理員視窗）。有開 BitLocker 或「裝置加密」的話，先備好復原金鑰。' -ForegroundColor DarkGray }
+}
 if ($ReportPath) { $sorted | ConvertTo-Json -Depth 3 | Out-File -LiteralPath $ReportPath -Encoding utf8; Write-Host "報告：$ReportPath" }

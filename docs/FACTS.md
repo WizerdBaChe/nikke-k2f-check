@@ -8,6 +8,7 @@ README、說明頁、`docs/DEVELOPER.md` 與四支腳本用到的痕跡、時間
 - **B** = 巴哈姆特整理文 <https://m.gamer.com.tw/forum/C.php?bsn=36390&snA=23304>（引用 NGA tid=47843502）
 - **H** = HKEPC 報導（Instagram 轉貼，2026-11-04）
 - **M** = 本 repo 作者在一台中毒的港澳台版電腦上實測（2026-11-04）
+- **K** = 韓國玩家 햄찌（hamzzi）的檢查・清除工具 v3.8（2026-11-04，<https://x.com/choi_hamzzi>）。社群工具，不是樣本分析；只靠 K 的項目標「推測擴充」
 - **D** = 防毒誤報的網路回報：<https://itch.io/post/14240566>、<https://forum.squareline.io/t/microsoft-defender-claims-trojan-script-wacatac-b-ml-on-installation-file/2681>（使用者回報，非微軟官方文件）
 
 ## 時間線
@@ -49,8 +50,13 @@ M：2026-11-04 15:00 前後從台灣連線，4 個檔案都回傳乾淨 ETag。
 | `k2f.agent.state`（含 agent_id、c2s_counter） | `%APPDATA%\nikke_launcher*\tbs_cache\Local Storage\leveldb\*.log` | 中毒；刪遊戲也不會消失 | G, B |
 | `insightjs` | `%APPDATA%\nikke_launcher*\tbs_cache\Code Cache\` | 有接觸 | B |
 | 啟動器存的登入資料 `psd.dat`、`last_user.dat` | `%APPDATA%\nikke_launcher*\` | 木馬 creds 指令會讀 | G |
+| `analytics.insightjs.com`，或它的 HSTS 雜湊 `wxL1BeG57AG6frvPqS7txqpE3NyN0/fSUZHCbEn9NSw=` | `%APPDATA%\nikke_launcher*\tbs_cache\` 裡的 `TransportSecurity`、`Network Persistent State` | 中毒（連過木馬本體下載網域；屬歷史紀錄） | K；雜湊 M 重算 |
+| `insightjs`，或 `insightjs.com` / `insightjs.org` 的 HSTS 雜湊 `JeFWywdZy+3jPC93e3P7ACdJ8liQHB7rH+9VHn7kswg=` / `+EQMCXxbp1N4L3mxYGR66hSUD0cvdir6DDtJBLH3wPk=` | 同上 | 有接觸 | K；雜湊 M 重算 |
+| 安裝位置：`url_protocol.reg` 與 `HKCU\Software\Classes\nikkelauncher(hmt)\DefaultIcon` 寫著 `nikke_launcher.exe` / `nikke_launcher_hmt.exe` 的路徑 | `%APPDATA%\nikke_launcher*\` | 用來找安裝資料夾，不是痕跡 | K, M |
 
 M：leveldb 與 Code Cache 是二進位檔；`Select-String` 在實測機上搜不到 `k2f.agent.state`，用位元組比對才找到。
+
+M：HSTS 雜湊是 Chromium 的算法：主機名稱轉成 DNS 線路格式（每段前面加長度、結尾補 0）再取 SHA-256、Base64。2026-11-04 重算三個網域，跟 K 的常數一致。港澳台版的執行檔叫 `nikke_launcher_hmt.exe`，K 的找法只比對 `nikke_launcher.exe`，會漏掉港澳台版。
 
 ## 第 2 階段痕跡（Chrome 常駐）
 
@@ -58,10 +64,13 @@ M：leveldb 與 Code Cache 是二進位檔；`Select-String` 在實測機上搜�
 - 檔案：`%LOCALAPPDATA%\Google\Chrome\User Data\PlatformExperienceHelper\<64 碼十六進位>\platform_experience_helper.dll`；每台受害者各自編譯，雜湊不是共通指標 — G, B, H
 - 殘留：Chrome Application 資料夾下的 `platform_experience_helper.dll.old`、`old-clsid.txt`、`service_util.dll` — G
 - 移除順序：先刪 HKCU 登錄項 → 重開機 → 只刪 64 碼子資料夾，不刪整個 PlatformExperienceHelper — G, B, H
+- 推測擴充（只有 K）：同一個 CLSID 在 32 位元登錄（`HKCU\Software\Classes\WOW6432Node\CLSID\...`）；Edge、Brave、Vivaldi、Chromium、Opera、Opera GX 的使用者資料夾下同樣的 `PlatformExperienceHelper\<64 碼>`。公開樣本只看到 Chrome。腳本照查，但排除 Google 或 Microsoft 有效簽章的 dll
+- 載入 dll 的程序：G、B 寫 chrome.exe；腳本改成查所有程序（K 的做法），因為 COM 劫持會被任何建立那個 COM 類別的程式載入 — K（推論）
 
 ## 暫存痕跡
 
 - `%TEMP%\k2f-bcreds*`、`k2f_screen_*.jpg` — G, B
+- 這台電腦每個使用者的 TEMP 都要查，不只目前登入的使用者 — K
 
 ## 已撤回、不算痕跡
 

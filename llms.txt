@@ -8,6 +8,7 @@
 - [Developer doc](docs/DEVELOPER.md): verdict logic, verification results, limits
 - [Player guide content](docs/index.explainer.json): the text of the player-facing page
 - [Detector source](Check-K2F.ps1): what is read and how verdicts are decided
+- [Fixture tests](tests/Run-FixtureTests.ps1): one positive and one negative case per check; results recorded in the developer doc
 
 ## Run
 

@@ -13,6 +13,8 @@ nikke-k2f-check/
 ├── README.md / README.en.md
 ├── AGENTS.md                給 AI 代理的事實與步驟
 ├── llms.txt                 機器索引
+├── tests/
+│   └── Run-FixtureTests.ps1 假資料夾測試：每個檢查各一個正向、一個負向案例
 └── docs/
     ├── FACTS.md             事實清單（單一來源）
     ├── DEVELOPER.md         本文件
@@ -59,11 +61,14 @@ flowchart LR
 | 判定 | 條件 | exit code |
 |---|---|---|
 | infected-live | 有 RED，且至少一筆不在 `debug.log` / `tinyget` 底下（元件仍在） | 3 |
-| infected-history | RED 全部只在 `debug.log` / `tinyget`（處理後保留的紀錄） | 2 |
+| infected-history | RED 全部只在 `debug.log` / `tinyget` / 啟動器網路紀錄 `TransportSecurity`、`Network Persistent State`（都是過去的紀錄，不是元件） | 2 |
 | contact | 只有 YELLOW | 1 |
 | clean-known | 沒有任何發現 | 0 |
 
 - 字串比對一律讀位元組（Latin-1 一對一解碼），同時比 ASCII 與 UTF-16LE。原因：leveldb 與 Code Cache 是二進位檔，`Select-String` 在實測機上漏抓 `k2f.agent.state`。
+- 檢查範圍是目前使用者，加上 `-UsersRoot`（預設 `C:\Users`）底下讀得到的每個使用者資料夾：啟動器快取、瀏覽器資料夾、TEMP。其他使用者的 HKCU 登錄要用那個帳號登入再跑。使用者清單的邏輯在 `Check-K2F.ps1` 第 0a 段與 `Remediate-K2F.ps1` 開頭各有一份，要一起改。
+- 找安裝資料夾：`-InstallPath` → 解除安裝登錄 → URL protocol 圖示與 `url_protocol.reg` → 都找不到真的啟動器時，才搜各磁碟前三層名稱含 NIKKE 的資料夾。
+- hosts：任何沒被註解、把網域指到 `0.0.0.0`、`127.0.0.1`、`::1`、`::` 的行都算封鎖。防火牆：規則要啟用、連出、封鎖，而且涵蓋兩個 IP 才算；`Remediate` 發現同名規則內容不對會重建。
 - `agent_pass` 不會印出，也不寫進報告。
 
 `Sweep-Persistence.ps1` 的木馬活動時段：從每筆 `agent started as` 起算，到那次啟動器最後一筆 `debug.log` 紀錄（間隔超過 1 小時視為下一次啟動）再加 30 分鐘，上限 `-WindowHours`（預設 8）。木馬住在啟動器的網頁元件裡，啟動器關了它就停，所以用固定 8 小時會把之後裝的正常軟體也算進去（實測：從 575 項降到 0 項優先項目）。已有效簽章的程式檔不列入。
@@ -81,7 +86,26 @@ flowchart LR
 | Test-CdnFiles（台灣，約 15:00） | 4 個檔案都是乾淨 ETag |
 | 4 支腳本 PowerShell 5.1 解析 | 0 個語法錯誤 |
 
-沒驗證過：國際版與日版的安裝資料夾結構、Proton/Linux、第 2 階段的正向對照（實測機沒有第 2 階段痕跡）。
+2026-11-04 加入多使用者、其他瀏覽器、32 位元登錄、任意程序、啟動器網路紀錄、`url_protocol.reg` 找安裝、hosts/防火牆判讀之後：
+
+| 檢查 | 結果 |
+|---|---|
+| `tests/Run-FixtureTests.ps1` 對新版 | 27 項全過 |
+| 同一份測試對改版前的 `main` | 17 項失敗，全部是這次新增的檢查（對照組：測試抓得到改版前缺的東西） |
+| 新版在實測機上重跑（機器已處理過） | clean-known，exit 0；防火牆規則內容核對為已封鎖 |
+| HSTS 雜湊 | 自行重算三個網域，與 hamzzi 工具的常數一致 |
+
+測試屬於範例測試（每個檢查一個正向、一個負向情境），不是對所有輸入的證明。32 位元登錄的案例是在 Claude 桌面 App 的終端機裡跑的，那裡的 HKCU 是 App 自己的虛擬化視圖，所以只證明腳本邏輯，沒碰到真正的使用者登錄。
+
+開發途中測試抓到一個回歸：`Get-ChildItem -LiteralPath ... -Include` 在 PowerShell 5.1 會忽略 `-Include`，把 Chrome 整個 Application 資料夾都報成殘留檔；已改回 `-Path`，負向案例 N0 就是防這個。
+
+沒驗證過：國際版與日版的安裝資料夾結構、Proton/Linux、第 2 階段在真實中毒機上的正向對照（實測機沒有第 2 階段痕跡）、防火牆規則重建（需要系統管理員）、`Sweep-Persistence.ps1` 離線掃描建議的 BitLocker 與「Defender 非主要防毒」分支（實測機只走到一般分支）。
+
+跑測試（會在 `%TEMP%` 建假資料夾，結束後刪掉；會暫時建立一個 HKCU 登錄項並在結束時移除）：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tests\Run-FixtureTests.ps1
+```
 
 ## 手動驗收清單
 
@@ -116,6 +140,9 @@ B 體驗
 - ETag 比對只看你連到的那個 CDN 節點，多查幾次才有意義。乾淨 ETag 來自 MotherSphere 的公開整理，若官方之後再更新檔案，會顯示「未知」。
 - 處置需要系統管理員權限才能改 hosts 與防火牆；沒有權限時那一步會略過並列為未完成。
 - `Sweep-Persistence.ps1` 大約要跑 2–3 分鐘（實測機 171 秒）。
+- 其他 Chromium 瀏覽器與 32 位元登錄是推測擴充（來源只有 hamzzi 工具，見 FACTS 來源 K），沒有公開樣本證實。
+- 不做全磁碟檔名掃描（hamzzi 工具有）：太慢，而且找不到啟動器時已有資料夾搜尋可用。
+- Windows 防火牆有關閉的設定檔時，封鎖規則在那個網路類型不生效；`Check` 與 `Remediate` 都會提示。
 
 ## 改這套工具
 
