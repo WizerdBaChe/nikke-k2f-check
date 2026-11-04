@@ -11,6 +11,8 @@ README、說明頁、`docs/DEVELOPER.md` 與四支腳本用到的痕跡、時間
 - **K** = 韓國玩家 햄찌（hamzzi）的檢查・清除工具 v3.8（2026-11-04，<https://x.com/choi_hamzzi>）。社群工具，不是樣本分析；只靠 K 的項目標「推測擴充」
 - **N** = 社群流傳的「受影響遊戲清單」：4chan 匿名貼文經 NGA 轉貼（2026-11-03），以及一則中文群組公告截圖。都沒有樣本或紀錄佐證，只當作待查線索
 - **M2** = 本 repo 作者在自己電腦上對三角洲 Garena 版啟動器的唯讀檢查（2026-11-04）
+- **GM** = Gamemeca 報導 <https://www.gamemeca.com/en/view.php?gid=1782921>（2026-11-04，含 Level Infinite 公告與 Krafton 回應）
+- **S** = PUBG: BATTLEGROUNDS 的 Steam 商店頁 <https://store.steampowered.com/app/578080/>（2026-11-04 讀取）
 - **D** = 防毒誤報的網路回報：<https://itch.io/post/14240566>、<https://forum.squareline.io/t/microsoft-defender-claims-trojan-script-wacatac-b-ml-on-installation-file/2681>（使用者回報，非微軟官方文件）
 
 ## 時間線
@@ -77,6 +79,8 @@ M：HSTS 雜湊是 Chromium 的算法：主機名稱轉成 DNS 線路格式（�
 ## 其他遊戲（未證實）
 
 - 社群說法：PUBG、三角洲、王者榮耀國際版、暗區突圍、沙丘：覺醒、帝國時代 Mobile、黎明覺醒等 Level Infinite 發行的 PC 版也中了 — N（未證實）
+- PUBG 的官方回應：報導中被牽連的是 **PUBG Mobile**；Krafton 表示 PUBG Mobile 只以手機遊戲營運、沒有官方 PC 版，與這次事件無關。Level Infinite 11-04 的公告只說 PC 啟動器的腳本檔可能被第三方竄改，沒有點名其他遊戲 — GM
+- PUBG PC（Steam 版，PUBG: BATTLEGROUNDS）：發行商是 KRAFTON，不是 Level Infinite；商店頁沒有標示第三方啟動器，由 Steam 直接啟動，反作弊是 Krafton 自家的 KSS — S。因此它不經過這次被竄改的 Level Infinite 啟動器網頁資源，判定「應無關」— 推論；沒有實機樣本，作者沒有安裝來測
 - 支持這說法的線索：被竄改的 `aegis-fix.min.js` 放在 `sg-gpts.playerinfinite.com/comm/assets/lib/`，路徑看起來是共用的；另外 3 個檔案有 2 個在 `nikke_launcher/` 路徑下 — G（路徑），推論
 - 反證（只限一台電腦、一個版本）：三角洲 **Garena 版**啟動器（2026-08 安裝，最後開啟 2026-09-09，早於竄改開始的 09-27）的網頁內容全部來自 `launcher.jupiterlauncher.com` 和 Garena 網域，`debug.log`、`%APPDATA%\df_garena_launcher*` 都沒有出現 `playerinfinite`、`insightjs` 或 `k2f` — M2。這不能代表 Steam 版或國際版，也不能代表 09-27 之後的版本
 - 三角洲 Garena 版的補充實測（2026-11-04）：啟動器程式檔裡唯一的 Level Infinite 字樣是登入元件中的 `www.levelinfinite.com`，整個安裝資料夾與 `%APPDATA%\df_garena_launcher*` 找不到 `sg-gpts`、`webassets.playerinfinite`、`aegis-fix`、`vue-bucket` — M2
