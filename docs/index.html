@@ -1,0 +1,1273 @@
+<!doctype html>
+<html lang="zh-TW" data-page-class="document-long" data-audience="audience">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NIKKE 啟動器木馬：自我檢查與處理</title>
+<style>
+/* Research-site shell styles (adapted from a long-document reference shell; look = light editorial).
+   Load order on every page: this file, then prose-doc-layer.css LAST (rules/deliverable-doc-refs.md).
+   Width: fluid main + right rail (data-rail); there is NO max-width on main and no left-anchored cap. */
+:root{
+  --paper:#fbfaf7; --plate:#ffffff; --ink:#1b1f24; --muted:#5d6470; --line:#dcd8cf;
+  --glass:#1f4e79; --glass-bg:#e8eff6;           /* the ONE chrome hue family: deep blue */
+  --gold:#5d7391; --gold-bg:#eef1f5;             /* slate-blue, story callouts stay inside the hue family */
+  --pass:#3b6a94; --pass-bg:#e8eff6;
+  --fail:#a8431f; --fail-bg:#faece5;             /* warning: the one semantic exception, rust */
+  --ask:#8a6a14; --ask-bg:#f6f0df;               /* open question: amber */
+  --mono:"IBM Plex Mono","Consolas","Courier New",monospace;
+  --sans:"Noto Sans TC","Microsoft JhengHei","PingFang TC",sans-serif;
+  --serif:"Noto Serif TC","Noto Sans TC","Microsoft JhengHei",serif;
+  /* Column widths (WC-P5-03): the layout reads --nav-w and --rail-w only. site.js writes the user's choice to
+     --nav-w-set / --rail-w-set; unset = these defaults. The rail exists from 1500 px up (see the media query). */
+  --nav-w:var(--nav-w-set,310px);
+  --rail-w:0px;
+}
+html.nav-off{--nav-w:0px;}
+html.rail-off{--rail-w:0px;}
+/* prose-doc-layer.css (loaded last) sizes #side and its main margin from --pdl-side-w, declared on :root; this rule is one
+   step more specific, so the shared layer follows --nav-w without being edited */
+html:root{--pdl-side-w:var(--nav-w);}
+html{scroll-behavior:smooth;}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--serif);line-height:1.8;-webkit-font-smoothing:antialiased;}
+*{box-sizing:border-box;}
+#side{position:fixed;left:0;top:0;bottom:0;width:var(--nav-w);overflow:auto;background:var(--plate);
+      border-right:1px solid var(--line);padding:18px 14px 40px;font-family:var(--sans);font-size:14px;line-height:1.5;}
+#side h1{font-size:16px;margin:0 0 2px;font-weight:700;}
+#side .sub{font-size:14px;color:var(--muted);margin-bottom:12px;}
+#side a{display:block;color:var(--ink);text-decoration:none;padding:3px 0;}
+#side a.l1{font-weight:500;margin-top:2px;}
+#side a.l1[aria-current="page"]{color:var(--glass);font-weight:700;}
+#side a.l2{padding-left:14px;color:var(--ink);}
+#side a.l3{padding-left:28px;color:var(--muted);}
+#side a:hover,#side a.cur{color:var(--glass);}
+#side .grp{font-size:14px;color:var(--muted);margin:14px 0 2px;border-top:1px solid var(--line);padding-top:8px;}
+main{margin-left:var(--nav-w);margin-right:calc(var(--rail-w) + var(--pin-w,0px));padding:36px clamp(20px,5vw,72px) 100px;max-width:none;}
+/* SH-12: an off-screen chapter skips style, layout and paint, so a column drag or a window resize re-lays out what is
+   on screen instead of the whole document (long MathML chapters made every drag frame a full-page layout).
+   `auto` remembers each chapter's last rendered height; 1500px is only the first estimate. */
+main section.ch{content-visibility:auto;contain-intrinsic-size:auto 1500px;}
+#rail{display:none;position:fixed;right:0;top:0;bottom:0;width:var(--rail-w);overflow:auto;z-index:40;
+      background:var(--plate);border-left:1px solid var(--line);padding:18px 16px 60px;font-family:var(--sans);font-size:14px;line-height:1.5;}
+#rail .rt{font-size:14px;color:var(--muted);}
+#rail .rs{font-weight:700;font-size:14px;margin:2px 0 8px;}
+#rail h3{font-size:14px;margin:14px 0 4px;padding-left:8px;border-left:3px solid var(--glass);}
+#rail .gl-row{grid-template-columns:auto 1fr;font-size:14px;}
+#rail a.rf{font-size:14px;}   /* the link look is shared with the chapter links: see .xlinks ul.xl a below */
+@media (min-width:1500px){:root{--rail-w:var(--rail-w-set,clamp(220px,16vw,300px));} #rail{display:block;}
+  html.rail-off{--rail-w:0px;} html.rail-off #rail{visibility:hidden;padding-left:0;padding-right:0;border-left:none;overflow:hidden;}}
+@media (min-width:921px){html.nav-off #side{visibility:hidden;padding-left:0;padding-right:0;border-right:none;overflow:hidden;}}
+@media (max-width:920px){#side{position:static;width:auto;border-right:none;border-bottom:1px solid var(--line);}
+  main{margin-left:0;padding:20px 16px 80px;}}
+/* resize handles and collapse toggles (created by site.js; absent without it) */
+.hdl,.tgl{display:none;position:fixed;}
+.hdl{top:0;bottom:0;width:11px;z-index:70;cursor:col-resize;touch-action:none;}
+.hdl::after{content:"";position:absolute;top:0;bottom:0;left:4px;width:3px;background:var(--glass);opacity:0;transition:opacity .12s;}
+.hdl::before{content:"";position:absolute;top:50%;left:2px;width:7px;height:44px;margin-top:-22px;border-radius:4px;background:var(--glass);
+  opacity:0;transition:opacity .12s;z-index:1;}
+.hdl:hover::after,.hdl:focus-visible::after,.hdl.drag::after{opacity:.45;}
+.hdl:hover::before,.hdl:focus-visible::before,.hdl.drag::before{opacity:.9;}
+.hdl:focus-visible{outline:none;}
+.tgl{top:10px;width:20px;height:28px;z-index:71;padding:0;border:1px solid var(--line);border-radius:3px;background:var(--plate);
+  color:var(--muted);font:700 15px/1 var(--sans);cursor:pointer;}
+.tgl:hover{color:var(--glass);border-color:var(--glass);}
+@media (min-width:921px){
+  .hdl-nav,.tgl-nav{display:block;}
+  .hdl-nav{left:max(0px,calc(var(--nav-w) - 5px));}
+  .tgl-nav{left:max(0px,calc(var(--nav-w) - 10px));}}
+@media (min-width:1500px){
+  .hdl-rail,.tgl-rail{display:block;}
+  .hdl-rail{right:max(0px,calc(var(--rail-w) - 5px));}
+  .tgl-rail{right:max(0px,calc(var(--rail-w) - 10px));}}
+header.pagehead .eyebrow{font-family:var(--sans);font-size:14px;color:var(--muted);}
+header.pagehead .edition-banner{font-family:var(--sans);font-size:13px;color:var(--muted);margin:-10px 0 18px;}
+h1.title{font-family:var(--serif);font-size:clamp(26px,3.2vw,38px);font-weight:600;margin:0 0 18px;line-height:1.3;}
+.lead{font-size:17px;color:var(--ink);}
+section.ch{margin-top:56px;padding-top:14px;border-top:3px solid var(--glass);}
+section.ch > h2{font-family:var(--serif);font-size:clamp(22px,2.4vw,30px);font-weight:600;margin:0 0 4px;}
+section.ch > .chsub{font-family:var(--sans);font-size:14px;color:var(--muted);margin-bottom:14px;}
+h3{font-family:var(--serif);font-size:19px;font-weight:600;margin:34px 0 8px;padding-left:10px;border-left:4px solid var(--glass);}
+h4{font-family:var(--serif);font-size:15px;font-weight:600;margin:20px 0 4px;color:var(--glass);}
+p{margin:8px 0;}
+li{margin:3px 0;}
+b{font-weight:700;}
+.val{font-family:var(--mono);font-size:.93em;font-weight:500;white-space:nowrap;}
+.small{font-family:var(--sans);font-size:14px;color:var(--muted);}
+a{color:var(--glass);}
+/* callouts */
+.box{border-left:4px solid var(--line);background:var(--plate);padding:10px 16px;margin:14px 0;}
+.box .tag{font-family:var(--sans);font-size:14px;display:block;margin-bottom:4px;font-weight:700;}
+.def{border-left-color:var(--glass);background:var(--glass-bg);} .def .tag{color:var(--glass);}
+.ex{border-left-color:var(--pass);background:var(--pass-bg);} .ex .tag{color:var(--pass);}
+.warn{border-left-color:var(--fail);background:var(--fail-bg);} .warn .tag{color:var(--fail);}
+.ask{border-left-color:var(--ask);background:var(--ask-bg);} .ask .tag{color:var(--ask);}
+.src{border-left-color:var(--muted);background:#f1efea;font-size:14px;} .src .tag{color:var(--muted);}
+.story{border-left-color:var(--gold);background:var(--gold-bg);} .story .tag{color:var(--gold);}
+/* tables */
+.twrap{overflow-x:auto;background:var(--plate);border:1px solid var(--line);margin:12px 0;}
+.twrap.scroll{max-height:72vh;overflow:auto;}
+table{border-collapse:collapse;width:100%;font-family:var(--sans);font-size:14px;line-height:1.5;}
+th{font-size:14px;color:var(--muted);text-align:left;font-weight:700;background:var(--plate);}
+.twrap.scroll th{position:sticky;top:0;box-shadow:0 1px 0 var(--line);z-index:1;}
+th,td{padding:6px 10px;border-bottom:1px solid var(--line);vertical-align:top;}
+tbody tr:last-child td{border-bottom:none;} td{font-variant-numeric:tabular-nums;}
+tr:target td{background:var(--glass-bg);}
+/* a targeted row must not hide under the sticky header of its scroll container */
+.twrap.scroll tbody tr[id]{scroll-margin-top:48px;}
+table.fixed{table-layout:fixed;}
+table.fixed th,table.fixed td{padding:6px 8px;overflow-wrap:anywhere;}
+td.d{white-space:nowrap;}
+td.ids .val{white-space:normal;word-break:break-all;display:inline-block;}
+ul.inflist{list-style:none;padding:0;margin:8px 0;}
+ul.inflist li{padding:2px 0;}
+/* figures */
+figure.tb{margin:16px 0;background:var(--plate);border:1px solid var(--line);padding:10px 10px 6px;}
+figure.tb svg{display:block;width:100%;height:auto;}
+figure.tb img{max-width:100%;height:auto;display:block;margin:0 auto;}
+figure.tb figcaption{font-family:var(--sans);font-size:14px;color:var(--muted);border-top:1px solid var(--line);padding-top:5px;margin-top:6px;}
+figure.tb a.infl:hover circle{stroke:var(--ink);stroke-width:2;}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+@media (max-width:920px){.grid2{grid-template-columns:1fr;}}
+.grid2 > *{min-width:0;}
+.chip{display:inline-block;font-family:var(--sans);font-size:14px;font-weight:600;padding:1px 8px;border-radius:2px;white-space:nowrap;vertical-align:middle;}
+.c-tag{background:var(--glass-bg);color:var(--glass);border:1px solid var(--glass);}
+/* registry mechanism */
+.ref{border-bottom:1px dotted var(--glass);cursor:pointer;}
+.sym{border-bottom:1px dotted var(--muted);cursor:pointer;}
+span.ref,span.sym{display:inline;}
+/* the hover card and the pinned cards are one card look (was declared twice) */
+#refcard,.pcard{background:var(--plate);border:1px solid var(--glass);box-shadow:0 6px 18px rgba(28,39,51,.14);padding:10px 14px;
+  font-family:var(--sans);font-size:14px;line-height:1.5;}
+#refcard{position:fixed;z-index:120;max-width:380px;display:none;}
+#refcard .rt,.pcard .rt{font-weight:700;margin-bottom:2px;}
+#refcard .rj{color:var(--glass);margin-top:6px;}
+#refcard .ro{color:var(--muted);margin-top:6px;}
+/* id-link preview card (hover) and pinned cards share one look */
+a.xr{text-decoration-style:dotted;text-underline-offset:3px;}
+#refcard.pv{max-width:420px;}
+#refcard .rb,.pcard .rb{white-space:pre-line;margin-top:2px;overflow-wrap:anywhere;}
+#refcard .rfrom,.pcard .rfrom{color:var(--muted);margin-top:6px;}
+#refcard .cact,.pcard .cact{display:flex;align-items:center;gap:12px;margin-top:8px;}
+#refcard .cact a,#refcard .cact button,.pcard .cact a,.pcard .cact button{font:inherit;color:var(--glass);background:none;border:1px solid var(--glass);
+  border-radius:2px;padding:1px 10px;line-height:1.5;cursor:pointer;text-decoration:none;}
+#refcard .cact a:hover,#refcard .cact button:hover,.pcard .cact a:hover,.pcard .cact button:hover{background:var(--glass-bg);}
+.pcard .cact .cx{margin-left:auto;}
+#pins{position:fixed;z-index:90;top:12px;right:calc(var(--rail-w,0px) + 14px);width:min(340px,38vw);max-height:calc(100vh - 56px);overflow:auto;
+  display:flex;flex-direction:column;gap:8px;pointer-events:none;}
+#pins:empty{display:none;}
+/* pinned cards push the main column instead of covering it (user ruling 2026-10-04); phones keep the overlay */
+@media (min-width:921px){html.has-pins{--pin-w:calc(min(340px,38vw) + 28px);}}
+.pcard{pointer-events:auto;}
+#backpill{position:fixed;left:50%;transform:translateX(-50%);bottom:24px;z-index:60;font-family:var(--sans);
+          font-size:14px;background:var(--ink);color:#fbfaf7;padding:5px 16px;border-radius:15px;cursor:pointer;display:none;border:none;}
+#gloss{position:fixed;inset:0;background:rgba(28,39,51,.55);display:none;z-index:100;}
+#gloss.open{display:flex;align-items:center;justify-content:center;}
+#gloss .panel{background:var(--plate);border:1px solid var(--line);max-height:86vh;overflow:auto;padding:22px 30px;width:min(900px,94vw);font-family:var(--sans);}
+#gloss h3{font-size:14px;color:var(--glass);margin:14px 0 6px;border:none;padding:0;}
+.gl-row{display:grid;grid-template-columns:190px 1fr;gap:12px;padding:3px 0;font-size:14px;border-bottom:1px solid var(--line);}
+.gl-row.jump{cursor:pointer;} .gl-row.jump:hover .gl-k{text-decoration:underline;}
+/* a key may be a multi-word name (SH-14 `k`): it wraps between words inside its column, never over the definition */
+.gl-k{font-family:var(--mono);font-weight:600;color:var(--glass);white-space:normal;overflow-wrap:break-word;min-width:0;}
+#hint{position:fixed;right:calc(var(--rail-w,0px) + 14px);bottom:10px;font-family:var(--sans);font-size:14px;color:var(--muted);background:var(--paper);
+      padding:2px 4px 2px 8px;border:1px solid var(--line);z-index:50;display:flex;align-items:center;gap:6px;}
+/* the restore tab (.hr) and the collapse button (.hx) are one quiet-button look (was declared twice) */
+#hint .hr,#hint .hx{font:inherit;color:var(--muted);background:none;border:none;padding:0 4px;cursor:pointer;}
+#hint .hr:hover,#hint .hx:hover{color:var(--ink);}
+#hint .hr{display:none;line-height:1.4;}
+#hint .hx{line-height:1;}
+#hint.off{padding:2px 4px;}#hint.off > :not(.hr){display:none;}#hint.off .hr{display:inline;}
+:focus-visible{outline:2px solid var(--glass);outline-offset:2px;}
+/* evidence table controls */
+.evctl{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:10px 0;font-family:var(--sans);font-size:14px;}
+.evctl input[type=search]{flex:1 1 280px;min-width:200px;padding:6px 10px;border:1px solid var(--line);font:inherit;background:var(--plate);}
+.evctl select{padding:6px 8px;border:1px solid var(--line);font:inherit;background:var(--plate);}
+/* pager + build footer */
+/* SH-19 card pager (site_links.pager_html): two equal cards, kicker line + chapter title, the whole card is the link;
+   a neighbour in another unit says 下一單元：<unit>. One column on phones; an empty side keeps its slot on wide screens. */
+nav.pager{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:56px;padding-top:16px;border-top:1px solid var(--line);font-family:var(--sans);}
+nav.pager .pg{display:flex;flex-direction:column;gap:2px;min-width:0;padding:12px 16px;border:1px solid var(--line);border-radius:4px;
+  background:var(--plate);color:var(--ink);text-decoration:none;line-height:1.45;}
+nav.pager .pg.next{text-align:right;}
+nav.pager > a:not(.pg):last-child{justify-self:end;}   /* a page still carrying the old one-line pager keeps next on the right */
+nav.pager .pg.empty{border:none;background:none;padding:0;}
+nav.pager a.pg:hover,nav.pager a.pg:focus-visible{border-color:var(--glass);}
+nav.pager a.pg:hover .pt{color:var(--glass);}
+nav.pager .pk{font-size:13px;color:var(--muted);}
+nav.pager .pt{font-size:15px;font-weight:600;overflow-wrap:anywhere;}
+@media (max-width:600px){nav.pager{grid-template-columns:1fr;} nav.pager .pg.empty{display:none;} nav.pager .pg.next{text-align:left;}}
+/* SH-20 incoming/outgoing chapter links (site_links.inject_xlinks): one copy in the rail under 本節速查, one in the main
+   column above the pager. Wide screens with the rail open show the rail copy; otherwise the in-flow copy. No JS needed. */
+.xlinks{font-family:var(--sans);font-size:14px;line-height:1.5;}
+.xlinks .xh{font-size:14px;margin:14px 0 4px;}
+main .xlinks .xh{font-family:var(--sans);font-weight:700;padding-left:0;border-left:none;color:var(--ink);}
+.xlinks .xn{font-weight:400;color:var(--muted);}
+.xlinks ul.xl{list-style:none;margin:0;padding:0;}
+.xlinks ul.xl li{margin:0;}
+/* one list-link look for the rail's section links and the chapter links (was declared twice) */
+#rail a.rf,.xlinks ul.xl a{display:block;padding:2px 0;color:var(--ink);text-decoration:none;border-bottom:1px solid var(--line);}
+#rail a.rf:hover,.xlinks ul.xl a:hover{color:var(--glass);}
+.xlinks details.xmore > summary{cursor:pointer;color:var(--muted);padding:3px 0;width:max-content;}
+#rail .xlinks{margin-top:18px;padding-top:6px;border-top:1px solid var(--line);}
+/* in-flow: the two lists (.xg) side by side when there is room, never one entry split across columns */
+main .xlinks.x-flow{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));column-gap:32px;
+  margin-top:56px;padding-top:4px;border-top:1px solid var(--line);}
+main .xlinks.x-flow > .xg{min-width:0;}
+main .xlinks.x-flow + nav.pager{margin-top:24px;}
+@media (min-width:1500px){main .xlinks.x-flow{display:none;} html.rail-off main .xlinks.x-flow{display:grid;}}
+footer.buildinfo{margin-top:28px;padding-top:12px;border-top:1px solid var(--line);font-family:var(--sans);font-size:14px;color:var(--muted);}
+footer.buildinfo p{margin:2px 0;}
+/* content update stamp (SH-16): p.upd = "最後更新 <time>：what"; site.js adds span.upd-new while the date is within
+   time[data-fresh] days of the reader's today; details.updlog = the full record (kind 排版 rows muted) */
+.upd{font-family:var(--sans);font-size:14px;color:var(--muted);margin:6px 0 0;}
+.upd time{color:var(--ink);font-variant-numeric:tabular-nums;}
+.upd-new{display:inline-block;margin:0 6px;padding:0 7px;border-radius:9px;background:var(--glass);color:#fff;font:600 12px/1.6 var(--sans);vertical-align:1px;}
+details.updlog{font-family:var(--sans);font-size:14px;color:var(--muted);margin:2px 0 0;}
+details.updlog > summary{cursor:pointer;width:max-content;max-width:100%;}
+details.updlog ol{margin:4px 0 0;padding-left:1.4em;}
+details.updlog li{margin:2px 0;}
+details.updlog li time{font-variant-numeric:tabular-nums;color:var(--ink);margin-right:6px;}
+details.updlog li.layout{opacity:.75;}
+details.updlog .kind{font-size:12px;border:1px solid var(--line);padding:0 5px;margin-right:6px;}
+/* self-test block <details class="quiz"><summary>question</summary><div class="qa">answer</div></details>:
+   question visible, answer one click away; site.js opens every one before printing */
+details.quiz{border:1px solid var(--line);background:var(--plate);margin:10px 0;padding:0 16px;}
+details.quiz > summary{cursor:pointer;padding:10px 0;font-weight:600;}
+details.quiz > summary::marker{color:var(--glass);}
+details.quiz[open] > summary{border-bottom:1px dashed var(--line);margin-bottom:8px;}
+details.quiz .qa{padding-bottom:6px;}
+/* nav keyword filter (site.js inserts the input; absent without JS). a.xs = links a builder lists hidden in #side
+   (e.g. other pages' sections) that only the filter shows */
+@media (pointer:coarse){.navq{font-size:16px !important;}}   /* < 16 px fields make phone browsers zoom on focus (A4) */
+.navq{display:block;width:100%;font:inherit;font-size:14px;padding:6px 10px;margin:4px 0 10px;border:1px solid var(--line);background:var(--paper);color:var(--ink);}
+.navq-n{font-size:14px;color:var(--muted);margin:-6px 0 8px;}
+#side [hidden]{display:none !important;}   /* `#side a{display:block}` above would override the attribute */
+#side a.xs{color:var(--muted);}
+/* <=920px: the nav becomes a drawer behind a sticky bar. Only with site.js running (html.drawer); without it the
+   stacked nav above the content stays. */
+#navbar,#scrim{display:none;}
+@media (max-width:920px){
+  html.drawer #side{position:fixed;top:0;bottom:0;left:0;width:min(340px,86vw);z-index:110;transform:translateX(-105%);
+    transition:transform .2s ease;box-shadow:0 0 32px rgba(28,39,51,.25);border-right:1px solid var(--line);visibility:hidden;}
+  html.drawer.nav-open #side{transform:none;visibility:visible;}
+  html.drawer #navbar{display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:105;width:100%;
+    padding:10px 16px;border:0;border-bottom:1px solid var(--line);background:var(--paper);color:var(--ink);
+    font:600 15px/1.4 var(--sans);text-align:left;cursor:pointer;}
+  #navbar .nb-cur{font-weight:400;font-size:14px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;}
+  html.drawer.nav-open #scrim{display:block;position:fixed;inset:0;z-index:108;background:rgba(28,39,51,.4);}
+  html.drawer{scroll-padding-top:52px;}
+}
+@media (prefers-reduced-motion:reduce){#side{transition:none !important;}}
+@media print{#navbar,#scrim{display:none !important;} details.quiz{break-inside:avoid;}
+  details.quiz::details-content{content-visibility:visible;display:block;}}   /* answers print even without site.js */
+@media print{#side,#hint,#backpill,#gloss,#refcard,#rail,#pins,.hdl,.tgl{display:none !important;} main{margin:0;max-width:none;}
+  section.ch{page-break-before:always;} main section.ch{content-visibility:visible;} .ref,.sym{border-bottom:none;} .twrap.scroll{max-height:none;overflow:visible;}}
+</style>
+<style>
+/* html-explainer carrier layer (not vendored) */
+.pagehead{margin-bottom:8px;}
+.pagehead .lead{margin:0 0 14px;color:var(--muted);}
+table caption{caption-side:top;text-align:left;font-family:var(--sans);font-size:var(--pdl-meta,14px);color:var(--muted);padding:8px 10px 4px;}
+ol.steps{list-style:none;counter-reset:st;padding:0;margin:14px 0;}
+ol.steps > li{counter-increment:st;display:grid;grid-template-columns:2.2em 1fr;gap:0 10px;padding:10px 0;margin:0;border-bottom:1px solid var(--line);}
+ol.steps > li:last-child{border-bottom:none;}
+ol.steps > li::before{content:counter(st);grid-row:1 / span 2;font-family:var(--sans);font-weight:700;color:var(--glass);}
+ol.steps .st-t{font-weight:700;}
+ol.steps .st-d{grid-column:2;}
+.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr));gap:14px;margin:16px 0;}
+.metric{background:var(--plate);border:1px solid var(--line);padding:10px 14px;min-width:0;}
+.metric .mv{font-size:var(--pdl-h3,20px);line-height:1.3;}
+.metric .mu{font-family:var(--sans);font-size:var(--pdl-meta,14px);color:var(--muted);margin-left:4px;}
+.metric .ml{font-family:var(--sans);font-weight:700;font-size:var(--pdl-meta,14px);}
+.metric .mn{font-family:var(--sans);font-size:var(--pdl-meta,14px);color:var(--muted);}
+blockquote.quote{margin:16px 0;padding:2px 0 2px 16px;border-left:2px solid var(--line);}
+blockquote.quote p{margin:0 0 6px;}
+blockquote.quote footer{font-family:var(--sans);font-size:var(--pdl-meta,14px);color:var(--muted);}
+figure.tb figcaption{font-weight:700;color:var(--ink);}
+figure.tb .fnotes{font-family:var(--sans);font-size:var(--pdl-meta,14px);color:var(--muted);padding:2px 0 4px;}
+figure.tb .fnotes span{display:block;}
+dl.gl{margin:12px 0;}
+dl.gl dt{font-family:var(--sans);font-weight:700;margin-top:12px;scroll-margin-top:16px;}
+dl.gl dt .en{font-weight:400;color:var(--muted);}
+dl.gl dd{margin:2px 0 0;}
+ol.refs{padding-left:1.6em;margin:12px 0;}
+ol.refs li{scroll-margin-top:16px;}
+ol.refs .rl{font-weight:700;}
+#rail .rx .rsum{color:var(--muted);margin:0 0 6px;}
+#rail .rx ul{margin:4px 0 8px;padding-left:18px;}
+#rail .rx li{margin:2px 0;}
+</style>
+<style>
+.copy-feedback-button {
+  --copy-button-bg: var(--av-bg, #ffffff);
+  --copy-button-ink: var(--av-fg, #26231d);
+  --copy-button-border: var(--av-border, #cfc9bd);
+  --copy-ok: var(--av-accent, #2f5d50);
+  --copy-ok-ink: var(--av-accent-fg, #ffffff);
+  --copy-fail: #a33f36;
+  --copy-fail-ink: #ffffff;
+  --copy-button-radius: 999px;
+  --copy-button-padding: 0.65rem 1rem;
+  --copy-button-transition: 140ms ease;
+  appearance: none;
+  border: 1px solid var(--copy-button-border);
+  border-radius: var(--copy-button-radius);
+  padding: var(--copy-button-padding);
+  background: var(--copy-button-bg);
+  color: var(--copy-button-ink);
+  cursor: pointer;
+  font: inherit;
+  line-height: 1;
+  transition: border-color var(--copy-button-transition),
+    background-color var(--copy-button-transition), color var(--copy-button-transition);
+}
+
+.copy-feedback-button:hover,
+.copy-feedback-button:focus-visible {
+  border-color: var(--copy-ok);
+  outline: 3px solid color-mix(in srgb, var(--copy-ok) 24%, transparent);
+  outline-offset: 2px;
+}
+
+.copy-feedback-button[data-state="ok"] {
+  border-color: var(--copy-ok);
+  background: var(--copy-ok);
+  color: var(--copy-ok-ink);
+}
+
+.copy-feedback-button[data-state="fail"] {
+  border-color: var(--copy-fail);
+  background: var(--copy-fail);
+  color: var(--copy-fail-ink);
+}
+
+/* html-explainer code block (carrier layer; the copy button's own CSS is the vendored asset) */
+.codeblock{margin:16px 0;border:1px solid var(--line);background:var(--plate);min-width:0;}
+.codeblock .codecap{font-family:var(--sans);font-weight:700;font-size:var(--pdl-meta,14px);padding:8px 12px 0;}
+.codeblock .codebar{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:6px 12px;font-family:var(--sans);font-size:var(--pdl-meta,14px);color:var(--muted);}
+.codeblock .codebar .codelang{min-height:1em;}
+.codeblock .copy-feedback-button{padding:4px 14px;border-radius:4px;font-family:var(--sans);font-size:var(--pdl-meta,14px);}
+.codeblock pre{margin:0;padding:10px 12px 12px;overflow-x:auto;max-width:100%;white-space:pre;tab-size:4;border-top:1px solid var(--line);}
+.codeblock code{font-family:ui-monospace,"Cascadia Mono",Consolas,Menlo,monospace;font-size:var(--pdl-meta,14px);line-height:1.5;}
+</style>
+<style>
+/* prose-doc-layer — restraint layer for long explanatory HTML documents (page class document-long/short).
+   Load it LAST, after the host shell's own stylesheet. It changes type, emphasis and spacing only; it never
+   touches content, layout grid or behaviour (hover cards, rail, glossary keep working).
+
+   Host vocabulary it targets (the "textbook shell" lineage): #side nav, #rail, main, section.ch > h2 / .chsub,
+   h3, h4, p, .lead, .box.{def,ex,warn,ask,src,story} > .tag, table/th/td, .twrap, figure.tb > figcaption,
+   .eq > .num, .val, .chip, #refcard, #gloss, #hint, #backpill. A shell with other class names maps them
+   first (README "換別的殼"). Colours are read from the host's tokens with a literal fallback.
+
+   Four properties it enforces (why: README):
+   P1 one hierarchy axis, big steps — four tiers, h2 / h3 / body / meta, nothing between body and h3.
+   P2 emphasis budget — only .warn and .ask keep a filled box; the other callouts become a thin rule.
+   P3 one element, one meaning — monospace for literal values and code only; labels use the text face.
+   P4 whitespace separates — no heading bars; more space above a heading than below; real paragraph gaps.
+
+   NOT for node views (dashboard / tool / launcher): there a box IS the entity boundary and colour IS its
+   class. Applying this layer there flattens the hierarchy (measured 2026-09-21 on a launcher page). */
+
+:root{
+  --pdl-h2:30px;        /* chapter heading */
+  --pdl-h3:20px;        /* section heading */
+  --pdl-body:16px;      /* body text, tables, h4 (bold) */
+  --pdl-meta:14px;      /* captions, labels, nav, rail, table headers — the floor */
+  --pdl-eq:18px;        /* display equations */
+  --pdl-side-w:310px;   /* left nav width; 14px nav text needs ~310px to keep section titles on one line */
+  --pdl-gap:14px;       /* paragraph gap */
+}
+
+/* P1 — type scale */
+body{font-size:var(--pdl-body)}
+section.ch > h2{font-size:var(--pdl-h2)}
+h3{font-size:var(--pdl-h3)}
+h4{font-size:var(--pdl-body);color:var(--ink,#1c2733)}
+.lead{font-size:calc(var(--pdl-body) + 2px)}
+table{font-size:var(--pdl-body)}
+.eq{font-size:var(--pdl-eq)}
+#side,#rail,#rail .rs,#rail h3,#rail .gl-row,#rail a.rf,.gl-row,.small,.src,figure.tb figcaption,
+#refcard,#refcard .rt,#hint,#backpill,.eq .num{font-size:var(--pdl-meta)}
+#side h1{font-size:var(--pdl-body)}
+/* .val keeps the shell's .93em on purpose: optical compensation for the monospace face, same tier as its host */
+
+/* P3 — monospace only for literals */
+#side .sub,#rail .rt,section.ch > .chsub,.box .tag,th,figure.tb figcaption,#refcard .rj,#gloss h3,#hint,#backpill,.chip{
+  font-family:var(--sans,"Noto Sans TC","Microsoft JhengHei",sans-serif);letter-spacing:0;text-transform:none}
+#side .sub,#rail .rt,section.ch > .chsub,.box .tag,th,#refcard .rj,#gloss h3,.chip{font-size:var(--pdl-meta)}
+.box .tag{font-weight:700;margin-bottom:2px}
+th{font-weight:700;color:var(--ink,#1c2733)}
+
+/* P2 — emphasis budget: a filled box only for warning and for a question someone must rule on */
+.box{padding:6px 0 6px 16px;margin:16px 0}
+.def,.ex,.src,.story{background:transparent}
+.def{border-left:2px solid var(--glass,#3e7cab)}
+.ex{border-left:2px solid var(--pass,#1a7f4e)}
+.src{border-left:2px solid var(--line,#d5dde4)}
+.story{border-left:2px solid var(--gold,#a3720a)}
+.warn,.ask{padding:10px 16px}
+
+/* P4 — whitespace, not bars */
+h3{border-left:none;padding-left:0;margin:44px 0 10px}
+h4{margin:28px 0 6px}
+p{margin:0 0 var(--pdl-gap)}
+li{margin:4px 0}
+#rail h3{border-left:none;padding-left:0}
+
+/* nav width follows the meta tier */
+/* only when the page actually has the fixed #side nav before <main>; a page without it is left alone */
+#side{width:var(--pdl-side-w)}
+#side ~ main{margin-left:var(--pdl-side-w)}
+@media (max-width:920px){#side{width:auto} #side ~ main{margin-left:0}}
+</style>
+<meta name="carrier-stamp" content="{&quot;body_sha256&quot;: &quot;31f2ae3933a80ac71eb508e77643b4ae3d5e2f9ecd2c612b6e96f1b334d9dcd7&quot;, &quot;built_at&quot;: &quot;2026-11-04T07:42:19Z&quot;, &quot;carrier&quot;: &quot;html-explainer&quot;, &quot;content_sha256&quot;: &quot;d56d1bf90e5eb6c3e7c6ceaa27dd841c242b384261f17543b9c784045aa0ad0c&quot;, &quot;schema&quot;: &quot;explainer/2&quot;, &quot;version&quot;: 11}">
+</head>
+<body>
+<nav id="side" aria-label="章節導覽"><h1>NIKKE 啟動器木馬：自我檢查與處理</h1><div class="sub">一分鐘查出有沒有中，中了照順序處理</div>
+<a class="l1" href="#who" data-sec>你需要檢查嗎</a>
+<a class="l1" href="#check" data-sec>三個步驟檢查</a>
+<a class="l1" href="#verdict" data-sec>結果怎麼看</a>
+<a class="l1" href="#fix" data-sec>中了之後的處理</a>
+<a class="l1" href="#noreinstall" data-sec>沒辦法重灌的話</a>
+<a class="l1" href="#reopen" data-sec>什麼時候可以再打開啟動器</a>
+<a class="l1" href="#limits" data-sec>這套工具做什麼、不做什麼</a>
+<div class="grp">附錄</div>
+<a class="l1" href="#x_glossary" data-sec>詞彙</a>
+<a class="l1" href="#x_refs" data-sec>出處</a>
+</nav>
+<main data-sections="who,check,verdict,fix,noreinstall,reopen,limits">
+<header class="pagehead">
+<div class="eyebrow">2026-11-04</div>
+<h1 class="title">NIKKE 啟動器木馬：自我檢查與處理</h1>
+<p class="lead">一分鐘查出有沒有中，中了照順序處理</p>
+</header>
+<div class="box def"><span class="tag">閱讀目的</span>看完之後你知道：自己有沒有中、中了先做什麼、什麼時候可以再打開啟動器。</div>
+<section class="ch" id="who" data-kind="content">
+<h2>你需要檢查嗎</h2>
+<div class="chsub">9 月 27 日之後在電腦上開過啟動器，就建議檢查。</div>
+<p>2026 年 9 月底到 11 月初，官方 <span class="sym" tabindex="0" data-key="CDN">CDN</span> 上有 4 個檔案被攻擊者竄改。<span class="sym" tabindex="0" data-key="啟動器">啟動器</span> 一打開就會自動載入它們，部分玩家因此被裝上遠端控制 <span class="sym" tabindex="0" data-key="木馬">木馬</span>。它會偷瀏覽器存的密碼和登入狀態、NIKKE 帳密、各種金鑰，以及加密貨幣錢包。</p>
+<p>只要 9 月 27 日之後在 <b>電腦</b> 上打開過啟動器，國際版、港澳台版、日版都算，Steam Deck 和 Linux 也算，就建議檢查。只玩手機版的話，目前沒有出事的回報。</p>
+<div class="box warn" data-kind="warn"><span class="tag">先做這件事</span>檢查和處理完之前，不要再打開電腦版啟動器。</div>
+</section>
+<section class="ch" id="check" data-kind="content">
+<h2>三個步驟檢查</h2>
+<div class="chsub">下載、打開終端機、貼一行，再看最後一行結果。只讀檔案，不改任何東西。</div>
+<ol class="steps" role="list"><li><span class="st-t">下載工具</span><span class="st-d">到 <span class="ref" tabindex="0" data-key="工具原始碼">工具原始碼</span> 頁面按綠色的 Code → Download ZIP，解壓縮到「下載」資料夾，會得到一個 nikke-k2f-check-main 資料夾。</span></li><li><span class="st-t">打開終端機</span><span class="st-d">在開始按鈕上按右鍵，選「終端機」或「Windows PowerShell」。看 <span class="sym" tabindex="0" data-key="終端機">終端機</span>。</span></li><li><span class="st-t">貼上指令</span><span class="st-d">按下方框框右上角的「複製」，在終端機視窗裡按右鍵貼上，再按 Enter。</span></li></ol>
+<div class="codeblock"><div class="codecap">檢查（只讀）</div><div class="codebar"><span class="codelang">powershell</span><button type="button" class="copy-feedback-button" hidden>複製</button></div><pre tabindex="0"><code class="language-powershell">powershell -ExecutionPolicy Bypass -File &quot;$HOME\Downloads\nikke-k2f-check-main\Check-K2F.ps1&quot;</code></pre></div>
+<p><b>最後看終端機的最後一行</b>，對照下一節的表格。如果它說找不到安裝資料夾，在指令最後加上空格和你的安裝位置，例如 -InstallPath D:\NIKKE。</p>
+</section>
+<section class="ch" id="verdict" data-kind="content">
+<h2>結果怎麼看</h2>
+<div class="chsub">四種結果；紅字分第 1、第 2 階段。</div>
+<div class="twrap"><table><caption>最後一行的四種結果</caption><thead><tr><th scope="col">最後一行顯示</th><th scope="col">意思</th><th scope="col">接下來</th></tr></thead><tbody><tr><td>中毒，木馬元件仍在</td><td>木馬啟動過，電腦裡還有它的元件。</td><td>先用手機改密碼，再做「中了之後」那一節。</td></tr><tr><td>曾經中毒，只剩歷史紀錄</td><td>木馬啟動過，已知元件已經清掉，只剩啟動器的紀錄檔。</td><td>被偷的密碼和金鑰仍然有效，換掉才是重點。</td></tr><tr><td>有接觸，未見木馬啟動</td><td>啟動器載入過攻擊者的程式，但沒看到木馬真正啟動。</td><td>改 NIKKE 和重要帳號的密碼。</td></tr><tr><td>沒發現已知痕跡</td><td>目前已知的痕跡都沒有出現。</td><td>不代表百分之百安全；確認官方檔案乾淨前先別開啟動器。</td></tr></tbody></table></div>
+<p>紅字會標第 1 或第 2 階段。第 1 階段是木馬在啟動器裡活動，關掉啟動器它就停了。第 2 階段是它寄生在 Chrome 裡，關掉遊戲之後還會繼續偷資料。看到第 2 階段，在處理完並重新開機之前，這台電腦上的 Chrome 都不要再登入任何帳號。</p>
+</section>
+<section class="ch" id="fix" data-kind="content">
+<h2>中了之後的處理</h2>
+<div class="chsub">先用手機換密碼，再用處理工具清掉元件。</div>
+<p><b>第一步：用手機換掉密碼和金鑰。</b> 這一步最重要，而且工具做不到。用手機或另一台乾淨的電腦，從最重要的開始：</p>
+<ul><li>Google 帳號（同時也是 Chrome 的密碼庫）：改密碼，到「安全性 → 你的裝置」登出所有裝置，開啟兩步驟驗證。</li><li>Email、網路銀行、Discord、Steam 等主要帳號。</li><li>有寫程式的人：撤銷 GitHub 權杖和 SSH 金鑰，到各 AI 和雲端服務後台把 API 金鑰作廢重發，命令列工具重新登入。</li><li>Chrome 裡存過密碼的其他網站。</li><li>NIKKE（Level Infinite）帳號。</li><li>加密貨幣：助記詞沒辦法「改」，只能開新錢包，把資產轉過去。</li></ul>
+<p><b>第二步：清掉電腦裡的木馬元件。</b> 在開始按鈕上按右鍵，選「終端機（系統管理員）」。先試跑一次，它只會列出打算做的事：</p>
+<div class="codeblock"><div class="codecap">處理：試跑（只列出，不動手）</div><div class="codebar"><span class="codelang">powershell</span><button type="button" class="copy-feedback-button" hidden>複製</button></div><pre tabindex="0"><code class="language-powershell">powershell -ExecutionPolicy Bypass -File &quot;$HOME\Downloads\nikke-k2f-check-main\Remediate-K2F.ps1&quot;</code></pre></div>
+<p>清單看起來沒問題，再加上 -Apply 真的執行：</p>
+<div class="codeblock"><div class="codecap">處理：真的執行</div><div class="codebar"><span class="codelang">powershell</span><button type="button" class="copy-feedback-button" hidden>複製</button></div><pre tabindex="0"><code class="language-powershell">powershell -ExecutionPolicy Bypass -File &quot;$HOME\Downloads\nikke-k2f-check-main\Remediate-K2F.ps1&quot; -Apply</code></pre></div>
+<p>它會結束啟動器、移除 Chrome 後門的登錄項和檔案、清掉啟動器快取，並封鎖攻擊者的網址和 IP。所有東西都是搬到 <span class="sym" tabindex="0" data-key="隔離資料夾">隔離資料夾</span>，不會直接刪除。如果它說檔案被鎖住，重新開機後再跑一次。最後再跑一次檢查，確認結果。</p>
+</section>
+<section class="ch" id="noreinstall" data-kind="content">
+<h2>沒辦法重灌的話</h2>
+<div class="chsub">重灌最保險；不能重灌就跑後門掃描，再做 Defender 完整掃描。</div>
+<p>這隻木馬能執行任意指令，所以最保險的做法是重灌 Windows。資料太多、沒辦法重灌的話，跑下面這支掃描。它會從啟動器的紀錄算出木馬真正活動的時段，把那段時間新出現的自動啟動項和沒有簽章的程式排在最前面。大約要兩到三分鐘。</p>
+<div class="codeblock"><div class="codecap">後門掃描（只讀）；把安裝位置換成你的</div><div class="codebar"><span class="codelang">powershell</span><button type="button" class="copy-feedback-button" hidden>複製</button></div><pre tabindex="0"><code class="language-powershell">powershell -ExecutionPolicy Bypass -File &quot;$HOME\Downloads\nikke-k2f-check-main\Sweep-Persistence.ps1&quot; -InstallPath D:\NIKKE</code></pre></div>
+<p>「優先檢視」沒有項目是好消息。下面的其他清單大多是你自己裝的正常軟體，看看有沒有不認得的就好。最後用 Windows 安全性做一次完整掃描和離線掃描。</p>
+</section>
+<section class="ch" id="reopen" data-kind="content">
+<h2>什麼時候可以再打開啟動器</h2>
+<div class="chsub">不必只信官方說法：自己比對 4 個檔案的指紋。</div>
+<p>官方說已經修好了，你也可以自己確認。下面這支只向官方 <span class="sym" tabindex="0" data-key="CDN">CDN</span> 查那 4 個檔案的 <span class="sym" tabindex="0" data-key="檔案指紋">檔案指紋</span>，跟研究者公布的乾淨版本比對，不會下載或執行任何程式。</p>
+<div class="codeblock"><div class="codecap">官方檔案比對</div><div class="codebar"><span class="codelang">powershell</span><button type="button" class="copy-feedback-button" hidden>複製</button></div><pre tabindex="0"><code class="language-powershell">powershell -ExecutionPolicy Bypass -File &quot;$HOME\Downloads\nikke-k2f-check-main\Test-CdnFiles.ps1&quot;</code></pre></div>
+<p>4 個都顯示「乾淨」才算數。CDN 在各地有很多節點，建議隔幾個小時查幾次，次次都乾淨再打開。打開前，先確認已經跑過處理工具，它會清掉啟動器快取裡的舊檔案。</p>
+</section>
+<section class="ch" id="limits" data-kind="content">
+<h2>這套工具做什麼、不做什麼</h2>
+<div class="chsub">只找已知痕跡；處理只搬不刪；不是官方工具。</div>
+<ul><li>檢查只讀不寫；處理時一律搬到隔離資料夾，不刪除。</li><li>它只能找 <b>已知</b> 的痕跡。沒找到不等於百分之百安全，所以才有「沒辦法重灌的話」那一節的掃描。</li><li>網路上常見的一鍵檢查用文字搜尋啟動器快取，但那是二進位檔，可能漏抓木馬的狀態紀錄；這套工具改用位元組比對。</li><li>這裡不提供「一行貼上、直接從網路下載並執行」的指令：這次出事，正是因為程式自動載入了網路上的程式碼。下載之後，你可以先打開 .ps1 檔看內容再執行。</li><li>痕跡清單來自 <span class="ref" tabindex="0" data-key="MotherSphere 技術整理">MotherSphere 技術整理</span> 和 <span class="ref" tabindex="0" data-key="WormW 樣本分析">WormW 樣本分析</span>，中文判斷標準參考 <span class="ref" tabindex="0" data-key="巴哈姆特整理文">巴哈姆特整理文</span>。這不是官方工具，也不保證能完全清除。</li></ul>
+</section>
+<section class="ch" id="x_glossary" data-kind="glossary">
+<h2>詞彙</h2>
+<dl class="gl"><dt id="g_launcher">啟動器 <span class="en">(launcher)</span></dt><dd>電腦版 NIKKE 開遊戲前出現的那個視窗。它會從網路載入公告和網頁，這次出事的就是它載入的程式。</dd><dt id="g_cdn">CDN <span class="en">(content delivery network)</span></dt><dd>官方用來把檔案發到世界各地的伺服器群。各地有很多節點，你連到的不一定是同一台。</dd><dt id="g_trojan">木馬 <span class="en">(remote access trojan)</span></dt><dd>讓攻擊者可以遠端操作你電腦的程式：執行指令、截圖、偷存在電腦裡的密碼和金鑰。</dd><dt id="g_etag">檔案指紋 <span class="en">(ETag)</span></dt><dd>伺服器給每個檔案版本的一串代號。檔案內容一變，代號就跟著變，所以可以拿來比對是不是乾淨的版本。</dd><dt id="g_quarantine">隔離資料夾 <span class="en">(quarantine folder)</span></dt><dd>處理工具把可疑檔案搬去的地方，在你的使用者資料夾底下。東西沒有被刪掉，只是搬走並改名，不會再被載入。</dd><dt id="g_terminal">終端機 <span class="en">(PowerShell)</span></dt><dd>Windows 內建輸入指令的視窗。在開始按鈕上按右鍵，選「終端機」或「Windows PowerShell」就會打開。</dd></dl>
+</section>
+<section class="ch" id="x_refs" data-kind="refs">
+<h2>出處</h2>
+<ol class="refs"><li id="r_gist"><span class="rl">MotherSphere 技術整理</span> — 完整的痕跡清單、時間線與移除順序。 <a href="https://gist.github.com/MotherSphere/d6c049a09ba8ac3085c51ee9df24a4e5" rel="noopener">https://gist.github.com/MotherSphere/d6c049a09ba8ac3085c51ee9df24a4e5</a></li><li id="r_wormw"><span class="rl">WormW 樣本分析</span> — 木馬本體的行為分析與偵測規則。 <a href="https://github.com/WormW/nikke_malware_analysis" rel="noopener">https://github.com/WormW/nikke_malware_analysis</a></li><li id="r_baha"><span class="rl">巴哈姆特整理文</span> — 中文懶人包與判斷標準。 <a href="https://m.gamer.com.tw/forum/C.php?bsn=36390&amp;snA=23304" rel="noopener">https://m.gamer.com.tw/forum/C.php?bsn=36390&amp;snA=23304</a></li><li id="r_repo"><span class="rl">工具原始碼</span> — 四支 PowerShell 腳本，下載前可以先看內容。 <a href="https://github.com/WizerdBaChe/nikke-k2f-check" rel="noopener">https://github.com/WizerdBaChe/nikke-k2f-check</a></li></ol>
+</section>
+<footer class="buildinfo"><p>日期 <span class="val">2026-11-04</span>　｜　作者 WizerdBaChe</p><p>痕跡清單整理自 MotherSphere 技術整理、WormW 樣本分析與巴哈姆特整理文；工具原始碼在 github.com/WizerdBaChe/nikke-k2f-check，MIT 授權。這不是官方工具。</p></footer>
+</main>
+<aside id="rail" data-rail aria-label="本節速查"><div id="railhead"></div><div id="railbody"></div></aside>
+<div id="hint"><span>虛線詞彙與出處：滑過看說明 · 點擊跳到定義處 · ⌫ 返回 · G 詞彙表</span><button class="hx" type="button" aria-label="收合這條提示">×</button></div>
+<div id="gloss" role="dialog" aria-label="詞彙表"><div class="panel"><div id="glosslist"></div></div></div>
+<div id="refcard" role="tooltip"></div>
+<div id="pins" aria-label="釘選的預覽卡片"></div>
+<button id="backpill" type="button">↩ 返回（Backspace）</button>
+<script type="application/json" id="previews">{}</script>
+<script type="application/json" id="rail-data">{"who":{"s":"9 月 27 日之後在電腦上開過啟動器，就建議檢查。","t":["只玩手機版：目前沒有出事回報","檢查完之前先別開電腦版"]},"check":{"s":"下載、打開終端機、貼一行，再看最後一行結果。只讀檔案，不改任何東西。"},"verdict":{"s":"四種結果；紅字分第 1、第 2 階段。","t":["看到階段 2：處理完前 Chrome 不要登入任何帳號"]},"fix":{"s":"先用手機換密碼，再用處理工具清掉元件。","t":["換密碼工具做不到，要你自己來","處理工具只搬不刪"]},"noreinstall":{"s":"重灌最保險；不能重灌就跑後門掃描，再做 Defender 完整掃描。"},"reopen":{"s":"不必只信官方說法：自己比對 4 個檔案的指紋。","t":["4 個都乾淨才算","隔幾小時多查幾次"]},"limits":{"s":"只找已知痕跡；處理只搬不刪；不是官方工具。"}}</script>
+<script>window.SITE_REFS = {"MotherSphere 技術整理":{"t":"MotherSphere 技術整理","d":"完整的痕跡清單、時間線與移除順序。","s":"#r_gist","n":true},"WormW 樣本分析":{"t":"WormW 樣本分析","d":"木馬本體的行為分析與偵測規則。","s":"#r_wormw","n":true},"巴哈姆特整理文":{"t":"巴哈姆特整理文","d":"中文懶人包與判斷標準。","s":"#r_baha","n":true},"工具原始碼":{"t":"工具原始碼","d":"四支 PowerShell 腳本，下載前可以先看內容。","s":"#r_repo","n":true}};
+window.SITE_SYMS = {"啟動器":{"t":"啟動器 — launcher","d":"電腦版 NIKKE 開遊戲前出現的那個視窗。它會從網路載入公告和網頁，這次出事的就是它載入的程式。","s":"#g_launcher","n":true},"CDN":{"t":"CDN — content delivery network","d":"官方用來把檔案發到世界各地的伺服器群。各地有很多節點，你連到的不一定是同一台。","s":"#g_cdn","n":true},"木馬":{"t":"木馬 — remote access trojan","d":"讓攻擊者可以遠端操作你電腦的程式：執行指令、截圖、偷存在電腦裡的密碼和金鑰。","s":"#g_trojan","n":true},"檔案指紋":{"t":"檔案指紋 — ETag","d":"伺服器給每個檔案版本的一串代號。檔案內容一變，代號就跟著變，所以可以拿來比對是不是乾淨的版本。","s":"#g_etag","n":true},"隔離資料夾":{"t":"隔離資料夾 — quarantine folder","d":"處理工具把可疑檔案搬去的地方，在你的使用者資料夾底下。東西沒有被刪掉，只是搬走並改名，不會再被載入。","s":"#g_quarantine","n":true},"終端機":{"t":"終端機 — PowerShell","d":"Windows 內建輸入指令的視窗。在開始按鈕上按右鍵，選「終端機」或「Windows PowerShell」就會打開。","s":"#g_terminal","n":true}};</script>
+<script>
+/* Research-site mechanism: registry-driven define-before-use (hover card 350 ms, click-to-jump,
+   Backspace-return, G glossary overlay), 本節速查 rail, the evidence-table filter, cross-reference previews
+   (hover card on id links, pinnable), resizable side columns, a nav keyword filter, a nav drawer under 920 px
+   and self-test blocks (details.quiz) that open for printing.
+   Adapted from a long-document reference shell (deck-shell lineage). Differences:
+   - multi-page: the nav is server-rendered native links; the destination lives in the URL;
+   - a registry entry `s` may be "other-page.html#id": clicking navigates there;
+   - registry and preview text is inserted with textContent (never innerHTML);
+   - links created here use setAttribute (gate-scanned documents must not contain href string literals);
+   - previews come from <script type="application/json" id="previews"> (pages are opened from file://, no fetch).
+   JS-dead degradation: without this file every page is a plain scrollable document: no handles, default widths,
+   links are ordinary anchors. */
+(function(){
+  'use strict';
+  var REFS = window.SITE_REFS || {};
+  var SYMS = window.SITE_SYMS || {};
+  var CUR = (location.pathname.split('/').pop() || 'index.html');
+  var card = document.getElementById('refcard'), pill = document.getElementById('backpill');
+  var gloss = document.getElementById('gloss'), backStack = [];
+  var pins = document.getElementById('pins');
+  /* a hub page (course index, launcher) carries #side but not the reader chrome (#refcard, #gloss, #backpill): the
+     hover / glossary / back handlers stand down there, and the nav, layout and drawer below still run */
+  var HAS_READER = !!(card && gloss && pill);
+  var SEL = '.ref,.sym,a[data-pv]';
+  function fail(where, e){ try { console.error(JSON.stringify({site:'research', where:where, error:String(e && e.message || e)})); } catch(_){} }
+
+  /* ---- cross-reference previews: key "file.html#id" -> {t:title, b:body, p:page title} */
+  var PV = {};
+  try { var pe = document.getElementById('previews'); if (pe) PV = JSON.parse(pe.textContent) || {}; } catch (e) { fail('previews-json', e); }
+  function keyOf(a){
+    var h = a.getAttribute('href');
+    if (!h || /^[A-Za-z][A-Za-z0-9+.-]*:/.test(h)) return null;
+    var i = h.indexOf('#'); if (i < 0) return null;
+    return (i === 0 ? CUR : h.slice(0, i)) + h.slice(i);
+  }
+  function decorateLinks(){
+    document.querySelectorAll('main a[href]').forEach(function(a){
+      var k = keyOf(a);
+      if (k && Object.prototype.hasOwnProperty.call(PV, k)) a.dataset.pv = k;
+    });
+  }
+
+  function entryFor(k){ return REFS[k] || SYMS[k]; }
+  /* SH-18 token matching, the one rule shell_match.py mirrors (decorate_cases.json binds both):
+     longest key first at each position, left to right; a match touching an ASCII word character
+     on either side is skipped WHOLE (no shorter key is retried there). */
+  function matcher(keys){
+    keys = keys.slice().sort(function(a,b){ return b.length - a.length; });
+    if (!keys.length) return function(){ return []; };   /* '()' would match the empty string forever */
+    var pat = keys.map(function(t){ return t.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'); }).join('|');
+    var reG = new RegExp('(' + pat + ')','g'), bound = /[A-Za-z0-9_]/;
+    return function(text){
+      var out = [], m;
+      reG.lastIndex = 0;
+      while ((m = reG.exec(text))){
+        var before = text[m.index-1], after = text[m.index + m[0].length];
+        if ((before && bound.test(before)) || (after && bound.test(after))) continue;
+        out.push([m.index, m.index + m[0].length, m[0]]);
+      }
+      return out;
+    };
+  }
+  function matchText(text, keys){ return matcher(keys)(text); }
+  var SKIP_TAGS = {SCRIPT:1, STYLE:1, SVG:1, H1:1, H2:1, H3:1, H4:1, A:1, CODE:1, TITLE:1, MATH:1};
+  function skipped(n){
+    for (var e = n.parentNode; e && e !== document.body; e = e.parentNode){
+      if (SKIP_TAGS[e.nodeName.toUpperCase()]) return true;
+      if (e.classList && (e.classList.contains('ref')||e.classList.contains('sym')||e.classList.contains('nodeco'))) return true;
+    }
+    return false;
+  }
+  /* Decorate the text under `root`; returns false when the registry has no matchable key.
+     A key whose entry has `b` (a block term) is matched, so it shields the shorter keys inside it,
+     but gets no token and no card. */
+  function decorateIn(root, refs, syms){
+    var keys = [];
+    Object.keys(refs).forEach(function(k){ if(!refs[k].n) keys.push(k); });
+    Object.keys(syms).forEach(function(k){ if(!syms[k].n) keys.push(k); });
+    if (!keys.length || !root) return false;
+    var match = matcher(keys), work = [];
+    var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, { acceptNode: function(n){
+      return skipped(n) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT;
+    }});
+    while (walker.nextNode()){
+      var ms = match(walker.currentNode.nodeValue);
+      if (ms.length) work.push([walker.currentNode, ms]);
+    }
+    work.forEach(function(w){
+      var node = w[0], text = node.nodeValue, frag = document.createDocumentFragment(), last = 0, any = false;
+      w[1].forEach(function(m){
+        var k = m[2], e = refs[k] || syms[k];
+        if (e && e.b) return;   /* block term: the text stays plain */
+        frag.appendChild(document.createTextNode(text.slice(last, m[0])));
+        var sp = document.createElement('span');
+        sp.className = Object.prototype.hasOwnProperty.call(refs, k) ? 'ref' : 'sym';
+        sp.tabIndex = 0; sp.dataset.key = k; sp.textContent = k;
+        frag.appendChild(sp); last = m[1]; any = true;
+      });
+      if (!any) return;
+      frag.appendChild(document.createTextNode(text.slice(last)));
+      node.parentNode.replaceChild(frag, node);
+    });
+    return true;
+  }
+  window.SiteShell = { matchText: matchText, decorateIn: decorateIn };   /* SH-18 test seam */
+  function decorate(){
+    if (!decorateIn(document.querySelector('main'), REFS, SYMS)) return;
+    railFor = null; cur();   /* rebuild the rail once the tokens exist */
+  }
+  var hoverTimer = null, hideTimer = null, curKey = null;
+  function place(anchor){
+    var r = anchor.getBoundingClientRect(), cw = card.offsetWidth, ch = card.offsetHeight;
+    var x = Math.min(Math.max(8, r.left), window.innerWidth - cw - 8), y = r.bottom + 8;
+    if (y + ch > window.innerHeight - 8) y = r.top - ch - 8;
+    card.style.left = x + 'px'; card.style.top = Math.max(8, y) + 'px';
+  }
+  function showCard(sp){
+    var e = entryFor(sp.dataset.key); if (!e) return;
+    curKey = null; card.className = ''; card.setAttribute('role', 'tooltip');
+    card.textContent = '';
+    var t = document.createElement('div'); t.className = 'rt'; t.textContent = e.t; card.appendChild(t);
+    var d = document.createElement('div'); d.textContent = e.d; card.appendChild(d);
+    if (e.o && e.o.length){ var o = document.createElement('div'); o.className = 'ro'; o.textContent = '又作：' + e.o.join('、'); card.appendChild(o); }
+    if (e.s){ var j = document.createElement('div'); j.className = 'rj'; j.textContent = '點擊跳至定義處 · Backspace 返回'; card.appendChild(j); }
+    card.style.display = 'block';
+    place(sp);
+  }
+  /* title, body, 出自, 前往 + (釘選 | ×): the same layout in the hover card and in a pinned card */
+  function fillPreview(box, key, e, pinned){
+    box.textContent = '';
+    function div(cls, txt){ var d = document.createElement('div'); d.className = cls; d.textContent = txt; box.appendChild(d); return d; }
+    div('rt', e.t);
+    if (e.b) div('rb', e.b);
+    div('rfrom', '出自：' + e.p);
+    var act = document.createElement('div'); act.className = 'cact';
+    var go = document.createElement('a'); go.className = 'cgo'; go.setAttribute('href', key); go.textContent = '前往 →'; act.appendChild(go);
+    var b = document.createElement('button'); b.type = 'button';
+    if (pinned){ b.className = 'cx'; b.textContent = '×'; b.setAttribute('aria-label', '關閉這張釘選卡片'); }
+    else { b.className = 'cpin'; b.textContent = '釘選'; }
+    act.appendChild(b); box.appendChild(act);
+  }
+  function showPreview(a){
+    var key = a.dataset.pv, e = PV[key]; if (!e) return;
+    curKey = key; card.className = 'pv'; card.setAttribute('role', 'group'); card.setAttribute('aria-label', '預覽：' + e.t);
+    fillPreview(card, key, e, false);
+    card.style.display = 'block';
+    place(a);
+  }
+  function showFor(sp){ if (sp.matches('a[data-pv]')) showPreview(sp); else showCard(sp); }
+  function hideCard(){ card.style.display = 'none'; curKey = null; }
+  function pinCurrent(){
+    if (!curKey || !PV[curKey]) return;
+    var key = curKey, e = PV[key];
+    Array.prototype.slice.call(pins.children).forEach(function(c){ if (c.dataset.key === key) pins.removeChild(c); });
+    var pc = document.createElement('div'); pc.className = 'pcard'; pc.dataset.key = key;
+    pc.setAttribute('role', 'group'); pc.setAttribute('aria-label', '釘選：' + e.t);
+    fillPreview(pc, key, e, true);
+    pins.appendChild(pc);
+    while (pins.children.length > 4) pins.removeChild(pins.firstChild);   /* the oldest drops */
+    hideCard();
+  }
+  /* s = "#id" or "file.html#id" or "file.html". Same page: smooth jump + Backspace pill. Other page: navigate. */
+  function jumpTo(s){
+    if (!s) return;
+    var i = s.indexOf('#'), file = i < 0 ? s : s.slice(0, i), id = i < 0 ? '' : s.slice(i + 1);
+    if (file && file !== CUR){ location.href = s; return; }
+    var el = id ? document.getElementById(id) : null; if (!el) return;
+    backStack.push(window.scrollY); pill.style.display = 'block'; hideCard();
+    el.scrollIntoView({behavior:'smooth', block:'start'});
+  }
+  function goBack(){ if (!backStack.length) return; var y = backStack.pop(); if (!backStack.length) pill.style.display='none'; window.scrollTo({top:y, behavior:'smooth'}); }
+  /* a click on an ordinary link that stays on this page: the browser does the scrolling, we only remember where we were */
+  function noteSamePage(a){
+    var k = keyOf(a); if (!k) return;
+    var i = k.indexOf('#'); if (k.slice(0, i) !== CUR || !document.getElementById(k.slice(i + 1))) return;
+    backStack.push(window.scrollY); pill.style.display = 'block';
+  }
+  document.addEventListener('mouseover', function(e){
+    if (!HAS_READER) return;
+    if (card.contains(e.target)){ clearTimeout(hideTimer); return; }   /* the card stays while the pointer is inside it */
+    var sp = e.target.closest && e.target.closest(SEL); clearTimeout(hoverTimer);
+    if (sp){ clearTimeout(hideTimer); hoverTimer = setTimeout(function(){ showFor(sp); }, 350); } });
+  document.addEventListener('mouseout', function(e){
+    if (!HAS_READER) return;
+    var sp = e.target.closest && e.target.closest(SEL), inCard = card.contains(e.target), to = e.relatedTarget;
+    if (!sp && !inCard) return;
+    if (to && (card.contains(to) || (sp && sp.contains(to)))) return;   /* moving between the link and its card, or inside the link */
+    clearTimeout(hoverTimer); hideTimer = setTimeout(hideCard, 150); });
+  document.addEventListener('focusin', function(e){ if (!HAS_READER) return; var sp = e.target.closest && e.target.closest(SEL); if (sp){ clearTimeout(hideTimer); showFor(sp); } });
+  document.addEventListener('focusout', function(e){
+    if (!HAS_READER) return;
+    var sp = e.target.closest && e.target.closest(SEL);
+    if (sp && !(e.relatedTarget && card.contains(e.relatedTarget))) hideCard(); });
+  document.addEventListener('click', function(e){
+    if (!HAS_READER) return;
+    var t = e.target;
+    var pin = t.closest && t.closest('.cpin');
+    if (pin){ pinCurrent(); return; }
+    if (t.closest && t.closest('#hint .hx')){ hideHint(true); return; }
+    if (t.closest && t.closest('#hint .hr')){ showHint(); return; }
+    var x = t.closest && t.closest('.cx');
+    if (x){ var pc = x.closest('.pcard'); if (pc && pc.parentNode) pc.parentNode.removeChild(pc); return; }
+    var sp = t.closest && t.closest('.ref,.sym');
+    if (sp){ var en = entryFor(sp.dataset.key); if (en && en.s) jumpTo(en.s); return; }
+    var row = t.closest && t.closest('.gl-row.jump');
+    if (row){ gloss.classList.remove('open'); jumpTo(row.dataset.sid); return; }
+    var a = t.closest && t.closest('a[href]');
+    if (a && !a.closest('#side') && !a.closest('#rail') && e.button === 0 && !(e.ctrlKey || e.metaKey || e.shiftKey || e.altKey)){
+      noteSamePage(a); hideCard();
+    }
+  });
+  /* ---- the hint bar can be closed (user ruling 2026-10-04); the choice is remembered per viewer, best effort */
+  var HKEY = 'research-site-hint-v1', hintEl = document.getElementById('hint');
+  function hideHint(save){
+    if (hintEl){ hintEl.classList.add('off'); var hb = hintEl.querySelector('.hr'); if (hb && save) hb.focus(); }
+    if (save){ try { window.localStorage.setItem(HKEY, 'off'); } catch (e) { fail('hint-save', e); } }
+  }
+  /* closing collapses the bar to a small restore tab (user ruling 2026-10-14); it never disappears for good */
+  function showHint(){
+    if (hintEl) hintEl.classList.remove('off');
+    try { window.localStorage.removeItem(HKEY); } catch (e) { fail('hint-save', e); }
+  }
+  if (hintEl && !hintEl.querySelector('.hr')){
+    var hr = document.createElement('button'); hr.type = 'button'; hr.className = 'hr';
+    hr.textContent = '？操作提示'; hr.setAttribute('aria-label', '展開操作提示'); hintEl.appendChild(hr);
+  }
+  try { if (window.localStorage.getItem(HKEY) === 'off') hideHint(false); } catch (e) { fail('hint-load', e); }
+  /* ---- pinned cards push the main column (user ruling 2026-10-04): site.css widens main's right margin under html.has-pins */
+  function syncPins(){ document.documentElement.classList.toggle('has-pins', !!(pins && pins.children.length)); }
+  try { if (pins) new MutationObserver(syncPins).observe(pins, {childList:true}); } catch (e) { fail('pins-observe', e); }
+  syncPins();
+  var glossBuilt = false;
+  function buildGloss(){
+    if (glossBuilt) return; glossBuilt = true;
+    var box = document.getElementById('glosslist'); box.textContent = '';
+    function head(s){ var h = document.createElement('h3'); h.textContent = s; box.appendChild(h); }
+    function row(k, e){
+      var r = document.createElement('div'); r.className = 'gl-row' + (e.s ? ' jump' : ''); if (e.s) r.dataset.sid = e.s;
+      var shown = e.k || k;   /* SH-14: an entry may name its display key (e.g. the English standard name) */
+      var a = document.createElement('span'); a.className = 'gl-k'; a.textContent = shown;
+      var b = document.createElement('span'); var bb = document.createElement('b');
+      bb.textContent = e.t.replace(new RegExp('^' + shown.replace(/[.*+?^${}()|[\]\\]/g,'\\$&') + '\\s*[—·-]\\s*'), '');
+      b.appendChild(bb);
+      if (e.o && e.o.length) b.appendChild(document.createTextNode('（又作 ' + e.o.join('、') + '）'));
+      b.appendChild(document.createTextNode('：' + e.d));
+      r.appendChild(a); r.appendChild(b); box.appendChild(r);
+    }
+    head('本頁出現的編號（點列可跳至定義處 · Esc 關閉）');
+    Object.keys(REFS).forEach(function(k){ if (!REFS[k].b) row(k, REFS[k]); });
+    head('名詞與縮寫');
+    /* SH-14: a synonym key (`a` = its standard key) decorates and hovers, but is listed once, under its standard entry;
+       SH-18: a block term (`b`) only shields shorter keys and is never listed */
+    Object.keys(SYMS).forEach(function(k){ if (!SYMS[k].a && !SYMS[k].b) row(k, SYMS[k]); });
+  }
+  document.addEventListener('keydown', function(e){
+    if (!HAS_READER || e.altKey || e.ctrlKey || e.metaKey) return;
+    var t = e.target;
+    /* Enter/Space on a focused token jumps; every other key falls through (after a click the token keeps focus,
+       and Backspace / G / Esc must still work from there) */
+    if (t && t.closest && t.closest('.ref,.sym') && (e.key==='Enter'||e.key===' ')){ e.preventDefault(); var en = entryFor(t.dataset.key); if (en && en.s) jumpTo(en.s); return; }
+    if (t && (t.tagName === 'INPUT' || t.tagName === 'SELECT' || t.tagName === 'TEXTAREA')) return;   /* typing in a filter box */
+    if (e.key === 'Escape'){ gloss.classList.remove('open'); hideCard(); return; }
+    /* keyboard route to 釘選: the preview of the focused link is open, P pins it */
+    if ((e.key === 'p' || e.key === 'P') && curKey && card.style.display === 'block'){ e.preventDefault(); pinCurrent(); return; }
+    if (e.key === 'g' || e.key === 'G'){ buildGloss(); gloss.classList.toggle('open'); }
+    if (e.key === 'Backspace'){ e.preventDefault(); goBack(); }
+  });
+  if (HAS_READER){
+    gloss.addEventListener('click', function(e){ if (e.target === gloss) gloss.classList.remove('open'); });
+    pill.addEventListener('click', goBack);
+  }
+
+  /* 本節速查 rail: the section in view, its decorated tokens and figures. */
+  var railEl = document.getElementById('rail'), railHead = document.getElementById('railhead'),
+      railBody = document.getElementById('railbody'), railFor = null;
+  function rail(best){
+    if (!railEl) return;
+    var sec = null;
+    if (best){ var target = document.getElementById(best.getAttribute('href').slice(1)); if (target) sec = target.closest('section.ch') || target; }
+    if (!sec) sec = document.querySelector('section.ch');
+    if (!sec || sec === railFor) return; railFor = sec;
+    var h = sec.querySelector('h2');
+    railHead.textContent = '';
+    var rt = document.createElement('div'); rt.className = 'rt'; rt.textContent = '本節速查'; railHead.appendChild(rt);
+    var rs = document.createElement('div'); rs.className = 'rs'; rs.textContent = h ? h.textContent : ''; railHead.appendChild(rs);
+    railBody.textContent = '';
+    var seen = {}, n = 0, hd = null;
+    sec.querySelectorAll('span[data-key]').forEach(function(sp){
+      var k = sp.dataset.key, e0 = entryFor(k);
+      if (e0 && e0.a && entryFor(e0.a)) k = e0.a;   /* SH-14: a synonym folds into its standard entry */
+      if (seen[k]) return; seen[k] = 1;
+      var e = entryFor(k); if (!e) return;
+      if (!hd){ hd = document.createElement('h3'); hd.textContent = '代號與名詞'; railBody.appendChild(hd); }
+      var r = document.createElement('div'); r.className = 'gl-row' + (e.s ? ' jump' : ''); if (e.s) r.dataset.sid = e.s;
+      var a = document.createElement('span'); a.className = 'gl-k'; a.textContent = e.k || k;
+      var b = document.createElement('span'); b.textContent = e.d;
+      r.appendChild(a); r.appendChild(b); railBody.appendChild(r); n++;
+    });
+    if (!n){ var none = document.createElement('div'); none.className = 'rs'; none.style.fontWeight = '400'; none.style.color = 'var(--muted)'; none.textContent = '本節沒有代號'; railBody.appendChild(none); }
+    var figs = sec.querySelectorAll('figure.tb');
+    if (figs.length){
+      var fh = document.createElement('h3'); fh.textContent = '本節圖表'; railBody.appendChild(fh);
+      figs.forEach(function(f, i){
+        var c = f.querySelector('figcaption'); if (!f.id) f.id = sec.id + '-fig' + (i + 1);
+        var a = document.createElement('a'); a.className = 'rf'; a.setAttribute('href', '#' + f.id);
+        a.textContent = c ? c.textContent.slice(0, 60) + (c.textContent.length > 60 ? '…' : '') : '圖 ' + (i + 1); railBody.appendChild(a);
+      });
+    }
+  }
+  /* current-section highlight over the server-rendered sub-links of the current page */
+  var links = Array.prototype.slice.call(document.querySelectorAll('#side a[data-sec]'));
+  /* SH-12: input handlers (scroll, resize, pointermove) only record and schedule; the work runs at most once per
+     frame, when layout is already clean, so a burst of events never forces one layout per event. */
+  function perFrame(fn){
+    var q = 0;
+    return function(){ if (!q) q = window.requestAnimationFrame(function(){ q = 0; fn(); }); };
+  }
+  var scrollJobs = [];
+  window.addEventListener('scroll', perFrame(function(){ scrollJobs.forEach(function(f){ f(); }); }), {passive:true});
+  function cur(){
+    var y = window.scrollY + 120, best = null;
+    links.forEach(function(a){ var el = document.getElementById(a.getAttribute('href').slice(1)); if (el && el.getBoundingClientRect().top + window.scrollY <= y) best = a; });
+    links.forEach(function(a){ a.classList.toggle('cur', a === best); });
+    rail(best);
+  }
+  scrollJobs.push(cur);
+
+  /* evidence table: text filter + kind/subsystem selects; the state lives in the URL query string. */
+  function evidenceFilter(){
+    var table = document.getElementById('evtab'); if (!table) return;
+    var q = document.getElementById('evq'), kind = document.getElementById('evkind'), sub = document.getElementById('evsub'),
+        count = document.getElementById('evcount');
+    var rows = Array.prototype.slice.call(table.tBodies[0].rows), hay = null;
+    var params = new URLSearchParams(location.search);
+    q.value = params.get('q') || ''; kind.value = params.get('kind') || ''; sub.value = params.get('sub') || '';
+    if (kind.value !== (params.get('kind') || '')) kind.value = '';
+    if (sub.value !== (params.get('sub') || '')) sub.value = '';
+    function apply(writeUrl){
+      if (!hay) hay = rows.map(function(r){ return r.textContent.toLowerCase(); });
+      var needle = q.value.trim().toLowerCase(), k = kind.value, s = sub.value, shown = 0;
+      rows.forEach(function(r, i){
+        var ok = (!needle || hay[i].indexOf(needle) >= 0) && (!k || r.dataset.kind === k) && (!s || r.dataset.sub === s);
+        r.hidden = !ok; if (ok) shown++;
+      });
+      count.textContent = '顯示 ' + shown + ' / ' + rows.length + ' 筆';
+      if (writeUrl){
+        var p = new URLSearchParams();
+        if (q.value.trim()) p.set('q', q.value.trim()); if (k) p.set('kind', k); if (s) p.set('sub', s);
+        var qs = p.toString();
+        try { history.replaceState(null, '', location.pathname + (qs ? '?' + qs : '') + location.hash); }
+        catch (e) { fail('evidence-filter replaceState', e); }
+      }
+    }
+    q.addEventListener('input', function(){ apply(true); });
+    kind.addEventListener('change', function(){ apply(true); });
+    sub.addEventListener('change', function(){ apply(true); });
+    apply(false);
+    /* a filtered-out row would hide the anchor the URL points at: keep the targeted row visible */
+    if (location.hash){ var t = document.getElementById(location.hash.slice(1)); if (t && t.hidden){ t.hidden = false; } }
+  }
+
+  /* The destination lives in the URL, so a reload / Back / Forward must land on the same view. The browser restores the
+     window scroll but not the scroll of a nested container (the evidence tables), so a target inside one is re-aligned. */
+  function restoreHash(){
+    if (!location.hash) return;
+    var el = document.getElementById(decodeURIComponent(location.hash.slice(1)));
+    if (el && el.closest && el.closest('.twrap.scroll')) el.scrollIntoView({behavior:'instant', block:'start'});
+  }
+
+  /* ---- resizable side columns (WC-P5-03 section 1)
+     --nav-w / --rail-w on :root drive the layout (site.css). The user's widths go to --nav-w-set / --rail-w-set; unset
+     means the CSS default. Bounds: nav 180-480, rail 200-560, main never under 480 px (the dragged side gives way).
+     One localStorage key holds both widths and both collapsed flags; every access is inside try/catch and a stored value
+     that does not parse or is out of bounds is ignored, so the page renders with storage absent or throwing. */
+  var LKEY = 'research-site-layout-v1';
+  var SPEC = {nav:{min:180, max:480}, rail:{min:200, max:560}}, MAIN_MIN = 480, STEP = 16;
+  var mqNav = window.matchMedia('(min-width:921px)'), mqRail = window.matchMedia('(min-width:1500px)');
+  var root = document.documentElement;
+  var vw = root.clientWidth;   /* read on init and resize only (SH-12): never between a style write and the next frame */
+  var L = {nav:null, rail:null, navOff:false, railOff:false};
+  var HDL = {}, TGL = {};
+  function numOk(v, side){ return typeof v === 'number' && isFinite(v) && v >= SPEC[side].min && v <= SPEC[side].max; }
+  function loadLayout(){
+    try {
+      var raw = window.localStorage.getItem(LKEY); if (!raw) return;
+      var o = JSON.parse(raw); if (!o || typeof o !== 'object') return;
+      if (numOk(o.nav, 'nav')) L.nav = o.nav;
+      if (numOk(o.rail, 'rail')) L.rail = o.rail;
+      if (o.navOff === true) L.navOff = true;
+      if (o.railOff === true) L.railOff = true;
+    } catch (e) { fail('layout-load', e); }
+  }
+  function saveLayout(){
+    try { window.localStorage.setItem(LKEY, JSON.stringify(L)); } catch (e) { fail('layout-save', e); }
+  }
+  function shownSide(side){ return side === 'nav' ? mqNav.matches : mqRail.matches; }
+  function defW(side){ return side === 'nav' ? 310 : Math.min(300, Math.max(220, window.innerWidth * 0.16)); }
+  function widthOf(side){
+    if (!shownSide(side) || L[side + 'Off']) return 0;
+    return L[side] != null ? L[side] : defW(side);
+  }
+  function bounds(side){
+    var other = widthOf(side === 'nav' ? 'rail' : 'nav');
+    return [SPEC[side].min, Math.max(SPEC[side].min, Math.min(SPEC[side].max, vw - other - MAIN_MIN))];
+  }
+  function clampW(side, w){ var b = bounds(side); return Math.min(b[1], Math.max(b[0], w)); }
+  function applyLayout(){
+    ['nav', 'rail'].forEach(function(side){
+      var off = !!L[side + 'Off'], sh = shownSide(side);
+      if (L[side] != null && sh && !off) root.style.setProperty('--' + side + '-w-set', Math.round(clampW(side, L[side])) + 'px');
+      else root.style.removeProperty('--' + side + '-w-set');
+      root.classList.toggle(side + '-off', off);
+      var h = HDL[side], g = TGL[side]; if (!h || !g) return;
+      /* aria-valuenow comes from the state, not from a layout read: the CSS width is exactly this value */
+      var b = bounds(side), w = (sh && !off) ? Math.round(clampW(side, widthOf(side))) : 0;
+      h.setAttribute('aria-valuemin', String(off ? 0 : b[0])); h.setAttribute('aria-valuemax', String(b[1])); h.setAttribute('aria-valuenow', String(w));
+      g.setAttribute('aria-expanded', off ? 'false' : 'true');
+      g.setAttribute('aria-label', (off ? '展開' : '收合') + (side === 'nav' ? '導覽欄' : '速查欄'));
+      g.textContent = (side === 'nav') === off ? '›' : '‹';
+    });
+  }
+  function currentWidth(side){ var el = side === 'nav' ? document.getElementById('side') : railEl; return el ? el.getBoundingClientRect().width : 0; }
+  function setWidth(side, w){ L[side] = Math.round(clampW(side, w)); L[side + 'Off'] = false; applyLayout(); }
+  function resetSide(side){ L[side] = null; L[side + 'Off'] = false; applyLayout(); saveLayout(); }
+  function bindHandle(h, side){
+    var grab = 0, want = null;
+    function pos(e){ return side === 'nav' ? e.clientX : vw - e.clientX; }
+    var flush = perFrame(function(){ if (want != null) { setWidth(side, want); want = null; } });
+    h.addEventListener('pointerdown', function(e){
+      if (e.button !== 0) return;
+      e.preventDefault();
+      grab = pos(e) - (L[side + 'Off'] ? 0 : currentWidth(side));
+      try { h.setPointerCapture(e.pointerId); } catch (x) { fail('pointer-capture', x); }
+      h.classList.add('drag');
+    });
+    h.addEventListener('pointermove', function(e){
+      if (!h.classList.contains('drag')) return;
+      want = pos(e) - grab; flush();
+    });
+    function end(e){
+      if (!h.classList.contains('drag')) return;
+      h.classList.remove('drag');
+      if (want != null) { setWidth(side, want); want = null; }   /* the last position lands even if its frame has not run */
+      try { h.releasePointerCapture(e.pointerId); } catch (x) { /* already released */ }
+      saveLayout();
+    }
+    h.addEventListener('pointerup', end);
+    h.addEventListener('pointercancel', end);
+    h.addEventListener('dblclick', function(){ resetSide(side); });
+    h.addEventListener('keydown', function(e){
+      if (e.altKey || e.ctrlKey || e.metaKey) return;
+      var d = 0;
+      /* the arrows move the separator: for the rail, ArrowLeft makes the column wider */
+      if (e.key === 'ArrowRight') d = side === 'nav' ? STEP : -STEP;
+      else if (e.key === 'ArrowLeft') d = side === 'nav' ? -STEP : STEP;
+      else if (e.key === 'Home'){ e.preventDefault(); resetSide(side); return; }
+      else return;
+      e.preventDefault();
+      var base = L[side + 'Off'] ? defW(side) - d : currentWidth(side);
+      setWidth(side, base + d); saveLayout();
+    });
+  }
+  function initLayout(){
+    ['nav', 'rail'].forEach(function(side){
+      var h = document.createElement('div');
+      h.id = 'h' + side; h.className = 'hdl hdl-' + side; h.tabIndex = 0;
+      h.setAttribute('role', 'separator'); h.setAttribute('aria-orientation', 'vertical');
+      h.setAttribute('aria-label', side === 'nav' ? '調整導覽欄寬度' : '調整速查欄寬度');
+      h.title = '拖曳調整寬度 · 方向鍵微調 · 雙擊或 Home 還原';
+      var g = document.createElement('button');
+      g.type = 'button'; g.id = 't' + side; g.className = 'tgl tgl-' + side;
+      g.addEventListener('click', function(){ L[side + 'Off'] = !L[side + 'Off']; applyLayout(); saveLayout(); });
+      document.body.appendChild(h); document.body.appendChild(g);
+      HDL[side] = h; TGL[side] = g;
+      bindHandle(h, side);
+    });
+    loadLayout();
+    applyLayout();
+    window.addEventListener('resize', perFrame(function(){ vw = root.clientWidth; applyLayout(); }));
+  }
+
+  /* ---- self-test print, nav filter, narrow-window nav drawer (accepted 2026-10-18, NTU notes site)
+     details.quiz: every closed one opens before printing and closes again after.
+     Filter: an input at the top of #side. Sections of this page (a[data-sec]) match on title + section text; links
+     a builder lists hidden as a.xs (other pages' sections) match on title only and appear under their page's l1.
+     Drawer (<=920 px, html.drawer): #side slides in over a scrim from a sticky #navbar that names the current
+     section; Esc, the scrim or a link closes it. JS-dead: answers still print (CSS), the nav stays stacked. */
+  function quizPrint(){
+    var reopened = [];
+    window.addEventListener('beforeprint', function(){
+      document.querySelectorAll('details.quiz:not([open])').forEach(function(d){ d.open = true; reopened.push(d); });
+    });
+    window.addEventListener('afterprint', function(){ reopened.forEach(function(d){ d.open = false; }); reopened = []; });
+  }
+  var navq = null;
+  function navFilter(){
+    var side = document.getElementById('side'); if (!side) return;
+    navq = document.createElement('input');
+    navq.type = 'search'; navq.className = 'navq'; navq.id = 'navq';
+    navq.placeholder = '篩選章節與小節…'; navq.setAttribute('aria-label', '篩選章節與小節');
+    var count = document.createElement('div'); count.className = 'navq-n'; count.setAttribute('aria-live', 'polite'); count.hidden = true;
+    var first = side.querySelector('a');
+    side.insertBefore(navq, first); side.insertBefore(count, first);
+    var groups = [], g = null;
+    Array.prototype.forEach.call(side.querySelectorAll('a'), function(a){
+      if (a.classList.contains('l1')) { g = {head:a, items:[]}; groups.push(g); }
+      else if (g && (a.classList.contains('l2') || a.classList.contains('l3'))) g.items.push(a);
+    });
+    var hay = new Map();
+    function textOf(a){
+      if (hay.has(a)) return hay.get(a);
+      var t = a.textContent;
+      if (a.hasAttribute('data-sec')) { var s = document.getElementById(a.getAttribute('href').slice(1)); if (s) t += ' ' + s.textContent; }
+      t = t.toLowerCase(); hay.set(a, t); return t;
+    }
+    function apply(){
+      var q = navq.value.trim().toLowerCase(), hits = 0;
+      groups.forEach(function(gr){
+        var any = false;
+        gr.items.forEach(function(a){
+          var show = q ? textOf(a).indexOf(q) >= 0 : !a.classList.contains('xs');
+          a.hidden = !show; if (show && q) { any = true; hits++; }
+        });
+        var headHit = !!q && gr.head.textContent.toLowerCase().indexOf(q) >= 0;
+        if (headHit && !any) hits++;
+        gr.head.hidden = !!q && !headHit && !any && gr.items.length > 0;
+      });
+      count.hidden = !q; count.textContent = hits ? hits + ' 個符合' : '沒有符合的章節或小節';
+    }
+    navq.addEventListener('input', apply);
+    navq.addEventListener('keydown', function(e){ if (e.key === 'Escape' && navq.value) { e.stopPropagation(); navq.value = ''; apply(); } });
+  }
+  function navDrawer(){
+    var side = document.getElementById('side'); if (!side) return;
+    var mq = window.matchMedia('(max-width:920px)'), html = document.documentElement;
+    var bar = document.createElement('button');
+    bar.type = 'button'; bar.id = 'navbar';
+    bar.setAttribute('aria-controls', 'side'); bar.setAttribute('aria-expanded', 'false');
+    var lab = document.createElement('span'); lab.textContent = '☰ 目錄';
+    var curEl = document.createElement('span'); curEl.className = 'nb-cur';
+    bar.appendChild(lab); bar.appendChild(curEl);
+    var scrim = document.createElement('div'); scrim.id = 'scrim';
+    side.parentNode.insertBefore(bar, side.nextSibling);
+    document.body.appendChild(scrim);
+    html.classList.add('drawer');
+    /* The filter box takes focus only when the drawer was opened from the keyboard (click detail 0). A pointer open
+       must not focus it: on a phone that pops the keyboard and, with a < 16 px field, zooms the page (A4, 2026-10-18). */
+    function setOpen(o, byKey){
+      html.classList.toggle('nav-open', o); bar.setAttribute('aria-expanded', o ? 'true' : 'false');
+      if (o && navq && byKey) navq.focus({preventScroll:true});
+      else if (!o && side.contains(document.activeElement)) bar.focus({preventScroll:true});
+    }
+    bar.addEventListener('click', function(e){ setOpen(!html.classList.contains('nav-open'), e.detail === 0); });
+    scrim.addEventListener('click', function(){ setOpen(false); });
+    side.addEventListener('click', function(e){ if (mq.matches && e.target.closest('a')) setOpen(false); });
+    document.addEventListener('keydown', function(e){ if (e.key === 'Escape' && html.classList.contains('nav-open')) setOpen(false); });
+    mq.addEventListener('change', function(){ if (!mq.matches) setOpen(false); });
+    var page = side.querySelector('a.l1[aria-current="page"]');
+    function label(){ var c = side.querySelector('a.cur'); curEl.textContent = c ? c.textContent : (page ? page.textContent : ''); }
+    scrollJobs.push(label); label();
+  }
+
+  /* ---- content update stamp (SH-16, 2026-10-26, NTU notes): a builder writes the date a page's CONTENT last changed
+     as <time datetime="YYYY-MM-DD" data-fresh="14">, never the build day, so a rebuild without a content change is
+     byte-identical. Whether that date is still "new" depends on the reader's day, not the build's, so the badge is
+     added here: 0 <= age < data-fresh days -> time.fresh plus a span.upd-new (label: data-fresh-label, default 已更新).
+     JS-dead degradation: the date still shows, without the badge. */
+  function updStamp(){
+    var now = new Date(), today = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+    document.querySelectorAll('time[data-fresh]').forEach(function(t){
+      var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(t.getAttribute('datetime') || ''); if (!m) return;
+      var age = Math.round((today - Date.UTC(+m[1], +m[2] - 1, +m[3])) / 864e5);
+      var win = parseInt(t.getAttribute('data-fresh'), 10);
+      if (!(age >= 0 && age < win)) return;
+      t.classList.add('fresh');
+      var b = document.createElement('span'); b.className = 'upd-new';
+      b.textContent = t.getAttribute('data-fresh-label') || '已更新';
+      t.parentNode.insertBefore(b, t.nextSibling);
+    });
+  }
+
+  try { cur(); decorate(); } catch (e) { fail('decorate', e); }
+  try { updStamp(); } catch (e) { fail('update-stamp', e); }
+  try { quizPrint(); } catch (e) { fail('quiz-print', e); }
+  try { navFilter(); } catch (e) { fail('nav-filter', e); }
+  try { navDrawer(); } catch (e) { fail('nav-drawer', e); }
+  try { decorateLinks(); } catch (e) { fail('link-previews', e); }
+  try { evidenceFilter(); } catch (e) { fail('evidence-filter', e); }
+  try { restoreHash(); } catch (e) { fail('restore-hash', e); }
+  try { initLayout(); } catch (e) { fail('layout', e); }
+  window.addEventListener('pageshow', function(ev){ if (ev.persisted) { try { restoreHash(); } catch (e) { fail('restore-hash', e); } } });
+})();
+</script>
+<script>
+(function(){
+  'use strict';
+  function fail(where, e){ try { console.error(JSON.stringify({site:'html-explainer', where:where, error:String(e && e.message || e)})); } catch(_){} }
+  var D = {}, body = document.getElementById('railbody');
+  try { D = JSON.parse(document.getElementById('rail-data').textContent) || {}; } catch (e) { fail('rail-data', e); }
+  if (!body) return;
+  function current(){
+    var secs = document.querySelectorAll('main section.ch'), y = window.scrollY + 120, best = null;
+    for (var i = 0; i < secs.length; i++){ if (secs[i].getBoundingClientRect().top + window.scrollY <= y) best = secs[i]; }
+    return best || secs[0] || null;
+  }
+  function ensure(){
+    try {
+      var sec = current(); if (!sec) return;
+      var have = body.querySelector('.rx');
+      if (have && have.getAttribute('data-sec') === sec.id) return;
+      if (have) body.removeChild(have);
+      var d = D[sec.id]; if (!d || (!d.s && !(d.t && d.t.length))) return;
+      var box = document.createElement('div'); box.className = 'rx'; box.setAttribute('data-sec', sec.id);
+      if (d.s){ var s = document.createElement('div'); s.className = 'rsum'; s.textContent = d.s; box.appendChild(s); }
+      if (d.t && d.t.length){
+        var h = document.createElement('h3'); h.textContent = '本節重點'; box.appendChild(h);
+        var ul = document.createElement('ul');
+        d.t.forEach(function(t){ var li = document.createElement('li'); li.textContent = t; ul.appendChild(li); });
+        box.appendChild(ul);
+      }
+      body.insertBefore(box, body.firstChild);
+    } catch (e) { fail('rail-extra', e); }
+  }
+  try { new MutationObserver(ensure).observe(body, {childList: true}); } catch (e) { fail('rail-observe', e); }
+  ensure();
+})();
+</script>
+<script type="module">
+/**
+ * A framework-free copy button behavior with visible success and failure states.
+ * The clipboard provider and legacy fallback are injectable so callers can test
+ * refusal without depending on the browser's permission state.
+ */
+
+function defaultClipboard() {
+  return globalThis.navigator?.clipboard ?? null;
+}
+
+function defaultLegacyCopy(text, documentRef = globalThis.document) {
+  if (!documentRef?.body || typeof documentRef.createElement !== "function") return false;
+  if (typeof documentRef.execCommand !== "function") return false;
+
+  const textarea = documentRef.createElement("textarea");
+  textarea.value = text;
+  Object.assign(textarea.style, {
+    position: "fixed",
+    opacity: "0",
+    pointerEvents: "none",
+  });
+  documentRef.body.append(textarea);
+  textarea.select();
+
+  let copied = false;
+  try {
+    copied = documentRef.execCommand("copy");
+  } catch {
+    copied = false;
+  }
+  textarea.remove();
+  return copied;
+}
+
+/**
+ * Copy text and resolve to false when both browser paths are refused.
+ * This function deliberately never throws for clipboard failures.
+ */
+export async function copyText(text, options = {}) {
+  const value = String(text ?? "");
+  const clipboard = options.clipboard ?? defaultClipboard();
+
+  try {
+    if (!clipboard || typeof clipboard.writeText !== "function") {
+      throw new Error("Clipboard API unavailable");
+    }
+    await clipboard.writeText(value);
+    return true;
+  } catch {
+    try {
+      const legacyCopy = options.legacyCopy ?? ((candidate) =>
+        defaultLegacyCopy(candidate, options.documentRef ?? globalThis.document));
+      return Boolean(await legacyCopy(value));
+    } catch {
+      return false;
+    }
+  }
+}
+
+/**
+ * Attach copy behavior to one button. `text` may be a string or `getText`
+ * may read the current value from the button's host context.
+ */
+export function mountCopyFeedbackButton(button, options = {}) {
+  if (!button || typeof button.addEventListener !== "function") {
+    throw new TypeError("mountCopyFeedbackButton needs a button-like element");
+  }
+
+  const idleLabel = options.idleLabel ?? button.textContent?.trim() ?? "Copy";
+  const successLabel = options.successLabel ?? "Copied";
+  const failureLabel = options.failureLabel ?? "Copy failed";
+  const revertDelay = Number.isFinite(Number(options.revertDelay))
+    ? Math.max(0, Number(options.revertDelay))
+    : 1600;
+  let resetTimer = null;
+
+  const reset = () => {
+    button.textContent = idleLabel;
+    delete button.dataset.state;
+  };
+
+  const copy = async () => {
+    let value = "";
+    try {
+      value = typeof options.getText === "function"
+        ? await options.getText(button)
+        : options.text ?? button.dataset.copyText ?? "";
+    } catch {
+      value = "";
+    }
+
+    const copied = await copyText(value, options);
+    button.textContent = copied ? successLabel : failureLabel;
+    button.dataset.state = copied ? "ok" : "fail";
+    if (resetTimer !== null) globalThis.clearTimeout(resetTimer);
+    resetTimer = globalThis.setTimeout(() => {
+      resetTimer = null;
+      reset();
+    }, revertDelay);
+    return copied;
+  };
+
+  const onClick = () => { void copy(); };
+  button.addEventListener("click", onClick);
+  if (!button.textContent?.trim()) button.textContent = idleLabel;
+
+  return {
+    copy,
+    reset,
+    destroy() {
+      button.removeEventListener("click", onClick);
+      if (resetTimer !== null) globalThis.clearTimeout(resetTimer);
+    },
+  };
+}
+
+(function(){
+  var boxes = document.querySelectorAll('.codeblock');
+  for (var i = 0; i < boxes.length; i++){
+    (function(box){
+      var btn = box.querySelector('button.copy-feedback-button'), code = box.querySelector('pre code');
+      if (!btn || !code) return;
+      btn.hidden = false;
+      mountCopyFeedbackButton(btn, {idleLabel: '複製', successLabel: '已複製', failureLabel: '複製失敗，請手動選取', getText: function(){ return code.textContent; }});
+    })(boxes[i]);
+  }
+})();
+</script>
+</body>
+</html>

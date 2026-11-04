@@ -38,17 +38,16 @@
     },
     {
       "id": "check",
-      "heading": "四個步驟檢查",
-      "summary": "下載、打開終端機、貼一行、看結果。只讀檔案，不改任何東西。",
+      "heading": "三個步驟檢查",
+      "summary": "下載、打開終端機、貼一行，再看最後一行結果。只讀檔案，不改任何東西。",
       "blocks": [
         {"type": "steps", "items": [
           {"title": "下載工具", "text": "到 [[r:repo]] 頁面按綠色的 Code → Download ZIP，解壓縮到「下載」資料夾，會得到一個 nikke-k2f-check-main 資料夾。"},
           {"title": "打開終端機", "text": "在開始按鈕上按右鍵，選「終端機」或「Windows PowerShell」。看 [[g:terminal]]。"},
-          {"title": "貼上指令", "text": "複製下面這行，在終端機視窗裡按右鍵貼上，再按 Enter。"},
-          {"title": "看最後一行", "text": "對照下一節的表格。"}
+          {"title": "貼上指令", "text": "按下方框框右上角的「複製」，在終端機視窗裡按右鍵貼上，再按 Enter。"}
         ]},
         {"type": "code", "lang": "powershell", "caption": "檢查（只讀）", "text": "powershell -ExecutionPolicy Bypass -File \"$HOME\\Downloads\\nikke-k2f-check-main\\Check-K2F.ps1\""},
-        {"type": "para", "text": "如果它說找不到安裝資料夾，在那行最後加上空格和你的安裝位置，例如 -InstallPath D:\\NIKKE。"}
+        {"type": "para", "text": "**最後看終端機的最後一行**，對照下一節的表格。如果它說找不到安裝資料夾，在指令最後加上空格和你的安裝位置，例如 -InstallPath D:\\NIKKE。"}
       ]
     },
     {
