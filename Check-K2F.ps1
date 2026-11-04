@@ -299,6 +299,8 @@ if ($redLive) {
   Write-Host '【結果：有接觸，未見木馬啟動】建議改 NIKKE 與重要帳號密碼，並清啟動器快取。' -ForegroundColor Yellow
 } elseif ($launchers) {
   Write-Host '【結果：沒發現已知痕跡】不代表百分之百安全。' -ForegroundColor Green
+} else {
+  Write-Host '【結果：沒發現已知痕跡】但找不到啟動器安裝資料夾：已經刪掉遊戲的話，啟動器紀錄也跟著沒了，無法確認以前有沒有中毒。還在的話請用 -InstallPath 指定再跑一次。' -ForegroundColor Green
 }
 if (-not ($findings | Where-Object Stage -eq '2')) {
   Write-Host '※ 第 2 階段（Chrome 常駐）未見痕跡；但這只在你自己的 PowerShell 視窗執行時才可信。' -ForegroundColor DarkGray
