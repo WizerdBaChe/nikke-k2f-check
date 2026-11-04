@@ -99,6 +99,7 @@ flowchart TD
 
 - Known indicators only; the RAT could run arbitrary commands, so a reinstall remains the safest option.
 - Stage 2 (HKCU, `%LOCALAPPDATA%`) is only reliable from your own PowerShell window; some sandboxed app terminals virtualize those locations.
+- Windows Defender may flag the downloaded ZIP (usually a `!ml` machine-learning name such as `Trojan:Script/Wacatac.B!ml`). The code is public for inspection; do not turn off your antivirus for it, report the false positive through Microsoft's file submission page instead. See [docs/FACTS.md](docs/FACTS.md#防毒誤報).
 - Not an official tool. Details: [docs/DEVELOPER.md](docs/DEVELOPER.md#限制).
 
 ## Credits

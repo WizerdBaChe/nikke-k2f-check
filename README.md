@@ -99,6 +99,7 @@ flowchart TD
 
 - 只能找**已知**痕跡。木馬能執行任意指令，最保險的做法仍是重灌。
 - 第 2 階段（HKCU 登錄檔、`%LOCALAPPDATA%`）要在你自己開的 PowerShell 視窗跑才準；在某些沙箱化 App 的內建終端機裡，這兩處可能被虛擬化。
+- Windows Defender 可能把下載的 ZIP 誤報成病毒（名稱常帶 `!ml`）。程式全部公開可檢查，請不要為此關掉防毒；可到微軟的檔案提交頁面回報誤判。詳見 [docs/FACTS.md](docs/FACTS.md#防毒誤報)。
 - 這不是官方工具，痕跡清單會跟著原始研究更新。詳見 [docs/DEVELOPER.md](docs/DEVELOPER.md#限制)。
 
 ## 致謝與來源

@@ -420,7 +420,7 @@ li{margin:4px 0}
 #side ~ main{margin-left:var(--pdl-side-w)}
 @media (max-width:920px){#side{width:auto} #side ~ main{margin-left:0}}
 </style>
-<meta name="carrier-stamp" content="{&quot;body_sha256&quot;: &quot;31f2ae3933a80ac71eb508e77643b4ae3d5e2f9ecd2c612b6e96f1b334d9dcd7&quot;, &quot;built_at&quot;: &quot;2026-11-04T07:42:19Z&quot;, &quot;carrier&quot;: &quot;html-explainer&quot;, &quot;content_sha256&quot;: &quot;d56d1bf90e5eb6c3e7c6ceaa27dd841c242b384261f17543b9c784045aa0ad0c&quot;, &quot;schema&quot;: &quot;explainer/2&quot;, &quot;version&quot;: 11}">
+<meta name="carrier-stamp" content="{&quot;body_sha256&quot;: &quot;34b62e7318be482901941dea2d54d4ff118462bcbc0711deed1e26ca69cda67f&quot;, &quot;built_at&quot;: &quot;2026-11-04T09:57:02Z&quot;, &quot;carrier&quot;: &quot;html-explainer&quot;, &quot;content_sha256&quot;: &quot;21b0a2d9f804a33bfd4c56df9aa228c645fe4703d13123ea8ef86008791db106&quot;, &quot;schema&quot;: &quot;explainer/2&quot;, &quot;version&quot;: 11}">
 </head>
 <body>
 <nav id="side" aria-label="章節導覽"><h1>NIKKE 啟動器木馬：自我檢查與處理</h1><div class="sub">一分鐘查出有沒有中，中了照順序處理</div>
@@ -453,6 +453,7 @@ li{margin:4px 0}
 <h2>三個步驟檢查</h2>
 <div class="chsub">下載、打開終端機、貼一行，再看最後一行結果。只讀檔案，不改任何東西。</div>
 <ol class="steps" role="list"><li><span class="st-t">下載工具</span><span class="st-d">到 <span class="ref" tabindex="0" data-key="工具原始碼">工具原始碼</span> 頁面按綠色的 Code → Download ZIP，解壓縮到「下載」資料夾，會得到一個 nikke-k2f-check-main 資料夾。</span></li><li><span class="st-t">打開終端機</span><span class="st-d">在開始按鈕上按右鍵，選「終端機」或「Windows PowerShell」。看 <span class="sym" tabindex="0" data-key="終端機">終端機</span>。</span></li><li><span class="st-t">貼上指令</span><span class="st-d">按下方框框右上角的「複製」，在終端機視窗裡按右鍵貼上，再按 Enter。</span></li></ol>
+<div class="box warn" data-kind="warn"><span class="tag">防毒說這個 ZIP 有病毒？</span>Windows 內建防毒（Defender）有時會把剛下載的 ZIP 誤判成病毒。名稱裡有 !ml 的（例如 Trojan:Script/Wacatac.B!ml）是機器學習「覺得像」，不是比對到已知病毒。這套工具為了清木馬，本來就會結束程式、改 hosts、加防火牆規則，這些動作看起來很像惡意程式。程式全部公開在 <span class="ref" tabindex="0" data-key="工具原始碼">工具原始碼</span>，可以自己或請懂電腦的朋友看過。<b>不要為了它關掉防毒</b>；可以到微軟的檔案提交頁面回報誤判。</div>
 <div class="codeblock"><div class="codecap">檢查（只讀）</div><div class="codebar"><span class="codelang">powershell</span><button type="button" class="copy-feedback-button" hidden>複製</button></div><pre tabindex="0"><code class="language-powershell">powershell -ExecutionPolicy Bypass -File &quot;$HOME\Downloads\nikke-k2f-check-main\Check-K2F.ps1&quot;</code></pre></div>
 <p><b>最後看終端機的最後一行</b>，對照下一節的表格。如果它說找不到安裝資料夾，在指令最後加上空格和你的安裝位置，例如 -InstallPath D:\NIKKE。</p>
 </section>

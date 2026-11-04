@@ -8,6 +8,7 @@ README、說明頁、`docs/DEVELOPER.md` 與四支腳本用到的痕跡、時間
 - **B** = 巴哈姆特整理文 <https://m.gamer.com.tw/forum/C.php?bsn=36390&snA=23304>（引用 NGA tid=47843502）
 - **H** = HKEPC 報導（Instagram 轉貼，2026-11-04）
 - **M** = 本 repo 作者在一台中毒的港澳台版電腦上實測（2026-11-04）
+- **D** = 防毒誤報的網路回報：<https://itch.io/post/14240566>、<https://forum.squareline.io/t/microsoft-defender-claims-trojan-script-wacatac-b-ml-on-installation-file/2681>（使用者回報，非微軟官方文件）
 
 ## 時間線
 
@@ -68,6 +69,12 @@ M：leveldb 與 Code Cache 是二進位檔；`Select-String` 在實測機上搜�
 - `PlatformExperienceHelper` 資料夾本身：Chrome 正常元件
 - `FETCH_LIST suc success`：FeedList 正常輸出
 - HKLM 底下的同名 CLSID
+
+## 防毒誤報
+
+- 本 repo 的 ZIP 在作者電腦上用 Defender 掃描（含雲端偵測、加上「來自網際網路」標記後解壓再掃）沒有發現威脅，病毒碼 1.463.119.0 — M（2026-11-04）
+- Defender 對剛出現、下載量少的壓縮檔或腳本，可能以機器學習判定報毒，名稱帶 `!ml`（例如 `Trojan:Script/Wacatac.B!ml`），常見誤報 — D
+- 本工具會結束程式、改 hosts、加防火牆規則、刪登錄機碼並以 `-ExecutionPolicy Bypass` 執行，外觀接近惡意腳本；這是誤判的可能原因，未經微軟確認 — M（推論）
 
 ## 木馬會偷的東西
 
