@@ -161,6 +161,23 @@ try {
   Assert (Has-Finding $r 'RED' "*\loader\$hex\platform_experience_helper.dll") 'P7 RED for powershell.exe loading the dll'
   Stop-Process -Id $helper.Id -Force; $helper = $null
 
+  Write-Host "`n[P8/N8] Delta Force Garena layout: launcher\service\debug.log, %APPDATA%\df_garena_launcher"
+  $dfLog = "[1104/010203.000:INFO:CONSOLE(1)] `"k2f_chan registered`", source: (1)`r`n[1104/010204.000:INFO:CONSOLE(1)] `"agent started as PC`", source: (1)`r`n"
+  $c = New-Case 'p8'; Remove-Item -LiteralPath $c.Install -Recurse -Force
+  $dfDbg = New-File "$(Split-Path $c.Install)\service\debug.log" $dfLog
+  New-File "$($c.Roaming)\df_garena_launcher\tbs_cache\Network Persistent State" '{"server":"https://insightjs.org"}' | Out-Null
+  $r = Invoke-Check $c
+  Assert (@($r.Report.Launchers) -contains (Split-Path $c.Install)) 'P8 service\debug.log layout recognised as a launcher'
+  Assert (Has-Finding $r 'RED' $dfDbg) 'P8 RED for k2f_chan + agent started in service\debug.log'
+  Assert (Has-Finding $r 'YELLOW' '*\df_garena_launcher\tbs_cache\Network Persistent State') 'P8 YELLOW for insightjs in df_garena_launcher cache'
+  Assert ($r.Report.Verdict -eq 'infected-history' -and $r.Code -eq 2) 'P8 debug.log counts as history, exit 2'
+  $c = New-Case 'n8'; Remove-Item -LiteralPath $c.Install -Recurse -Force
+  New-File "$(Split-Path $c.Install)\service\debug.log" "[0909/205702.000:INFO:CONSOLE(17)] `"[js-bridge][response][Srv_Com_QuitApp]`", source: https://launcher.jupiterlauncher.com/assets/configs.js (17)`r`n" | Out-Null
+  New-File "$($c.Roaming)\df_garena_launcher\tbs_cache\Network Persistent State" '{"server":"https://launcher.jupiterlauncher.com"}' | Out-Null
+  $r = Invoke-Check $c
+  Assert (@($r.Report.Launchers) -contains (Split-Path $c.Install)) 'N8 clean Delta Force launcher still recognised'
+  Assert ($r.Findings.Count -eq 0 -and $r.Code -eq 0) 'N8 clean Delta Force logs not flagged'
+
   Write-Host "`n[R1] Remediate -Apply on fixture: other user's cache, Edge dll, temp"
   $c = New-Case 'r1'
   $edge = New-File "$($c.Other)\Microsoft\Edge\User Data\PlatformExperienceHelper\$hex\platform_experience_helper.dll" ('MZ' + ('x' * 100))

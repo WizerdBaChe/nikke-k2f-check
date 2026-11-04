@@ -7,8 +7,11 @@
   WormW/nikke_malware_analysis, Bahamut bsn=36390 snA=23304 (NGA tid=47843502).
   Run it in YOUR OWN PowerShell window (not inside a sandboxed app shell): HKCU and
   %LOCALAPPDATA% can be virtualized for packaged apps, which would hide stage-2 artifacts.
+  Launcher layouts: NIKKE (launcher\intl_service\debug.log, %APPDATA%\nikke_launcher*) and the Delta Force
+  Garena launcher (launcher\service\debug.log, %APPDATA%\df_garena_launcher*). Any %APPDATA% folder holding a
+  tbs_cache web view is also scanned, as an inferred extension: no public sample shows K2F outside NIKKE.
 .PARAMETER InstallPath
-  NIKKE install root(s), e.g. D:\NIKKE. Auto-discovered when omitted.
+  Launcher install root(s), e.g. D:\NIKKE or "D:\game\Delta Force". Auto-discovered when omitted.
 .PARAMETER ReportPath
   Optional JSON report path (secrets redacted).
 .PARAMETER UsersRoot
@@ -80,33 +83,42 @@ foreach ($p in 'nikkelauncher', 'nikkelauncherhmt') {
   $v = [string](Get-ItemProperty "HKCU:\Software\Classes\$p\DefaultIcon").'(default)'
   if ($v -match $exeRx) { $roots += (Split-Path $matches[0] -Parent) }
 }
-foreach ($pf in $profiles) {
-  foreach ($A in Get-ChildItem -LiteralPath $pf.Roaming -Directory -Force -Filter 'nikke_launcher*') {
-    $t = Get-Content -LiteralPath (Join-Path $A.FullName 'url_protocol.reg') -Raw
-    if ($t) { foreach ($m in [regex]::Matches(($t -replace '\\\\', '\'), $exeRx)) { $roots += (Split-Path $m.Value -Parent) } }
+# Launcher web-view data folders: NIKKE by name, plus any folder holding a tbs_cache (Delta Force Garena:
+# df_garena_launcher). The same list feeds section 2.
+$dataDirs = @($profiles | ForEach-Object {
+  Get-ChildItem -LiteralPath $_.Roaming -Directory -Force | Where-Object { $_.Name -like 'nikke_launcher*' -or (Test-Path -LiteralPath (Join-Path $_.FullName 'tbs_cache')) }
+})
+# Protocol .reg files name the launcher exe: url_protocol.reg inside the folder (NIKKE) or <folder>.reg beside it (Delta Force).
+$regExeRx = '[A-Za-z]:\\[^"\r\n]*?\\[^"\\\r\n]*launcher[^"\\\r\n]*\.exe'
+foreach ($A in $dataDirs) {
+  foreach ($rf in (Join-Path $A.FullName 'url_protocol.reg'), "$($A.FullName).reg") {
+    $t = Get-Content -LiteralPath $rf -Raw
+    if ($t) { foreach ($m in [regex]::Matches(($t -replace '\\\\', '\'), $regExeRx)) { $roots += (Split-Path $m.Value -Parent) } }
   }
 }
 foreach ($k in 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*',
                'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*',
                'HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*') {
-  Get-ItemProperty $k | Where-Object { $_.DisplayName -like '*NIKKE*' -and $_.InstallLocation } |
+  Get-ItemProperty $k | Where-Object { $_.DisplayName -match 'NIKKE|Delta Force' -and $_.InstallLocation } |
     ForEach-Object { $roots += $_.InstallLocation }
 }
 # A root may be the launcher folder itself or its parent. Recorded paths can be stale (uninstalled),
 # so the folder glob runs whenever no root resolves to a launcher, not only when no root was found.
+# Log folder: intl_service (NIKKE) or service with a debug.log (Delta Force Garena).
 function Resolve-Launchers($rs) {
   $out = @()
   foreach ($r in ($rs | Where-Object { $_ } | Sort-Object -Unique)) {
     $r = $r.TrimEnd('\')
-    if (Test-Path "$r\intl_service") { $out += $r }
-    elseif (Test-Path "$r\launcher\intl_service") { $out += "$r\launcher" }
+    foreach ($c in $r, "$r\launcher") {
+      if ((Test-Path "$c\intl_service") -or (Test-Path "$c\service\debug.log")) { $out += $c; break }
+    }
   }
   $out | Sort-Object -Unique
 }
 $launchers = @(Resolve-Launchers $roots)
 if (-not $launchers) {
   foreach ($d in (Get-PSDrive -PSProvider FileSystem).Root) {
-    foreach ($g in "$d*NIKKE*", "$d*\*NIKKE*", "$d*\*\*NIKKE*") {
+    foreach ($g in "$d*NIKKE*", "$d*\*NIKKE*", "$d*\*\*NIKKE*", "$d*Delta Force*", "$d*\*Delta Force*", "$d*\*\*Delta Force*") {
       Get-Item $g -Force | Where-Object PSIsContainer | ForEach-Object { $roots += $_.FullName }
     }
   }
@@ -115,7 +127,7 @@ if (-not $launchers) {
 
 # ---------- 1. stage 1: launcher logs ----------
 foreach ($L in $launchers) {
-  $dbg = Get-ChildItem $L -Recurse -Force -Filter debug.log | Where-Object { $_.DirectoryName -match 'intl_service' }
+  $dbg = Get-ChildItem $L -Recurse -Force -Filter debug.log | Where-Object { $_.DirectoryName -match '\\(intl_service|service)$' }
   foreach ($f in $dbg) {
     [void]$checked.Add($f.FullName)
     $lines = Get-Content -LiteralPath $f.FullName
@@ -148,12 +160,12 @@ foreach ($L in $launchers) {
   }
 }
 
-# ---------- 2. stage 1: launcher web cache (%APPDATA%\nikke_launcher*) ----------
+# ---------- 2. stage 1: launcher web cache (%APPDATA%\nikke_launcher*, other tbs_cache folders) ----------
 $agentInfo = $null
 # Chromium HSTS keys: base64(SHA-256(DNS wire-format host)). Recomputed 2026-11-04, equal to hamzzi v3.8's constants.
 $hstsAnalytics = 'wxL1BeG57AG6frvPqS7txqpE3NyN0/fSUZHCbEn9NSw='   # analytics.insightjs.com
 $hstsOther = 'JeFWywdZy+3jPC93e3P7ACdJ8liQHB7rH+9VHn7kswg=', '+EQMCXxbp1N4L3mxYGR66hSUD0cvdir6DDtJBLH3wPk='   # insightjs.com, insightjs.org
-foreach ($A in @($profiles | ForEach-Object { Get-ChildItem -LiteralPath $_.Roaming -Directory -Force -Filter 'nikke_launcher*' })) {
+foreach ($A in $dataDirs) {
   # Network records of the launcher web view: which hosts it reached (history, not a live component).
   foreach ($f in Get-ChildItem -LiteralPath $A.FullName -Recurse -File -Force | Where-Object { $_.Name -in 'TransportSecurity', 'Network Persistent State' }) {
     [void]$checked.Add($f.FullName)
@@ -261,8 +273,8 @@ foreach ($r in @(Get-NetFirewallRule -DisplayName 'Block K2F C2', 'NIKKE k2f blo
   if (@($fwIps | Where-Object { $addr -notcontains $_ }).Count -eq 0) { $fwBlocked = $true }
 }
 $fwOff = @(Get-NetFirewallProfile | Where-Object { "$($_.Enabled)" -eq 'False' } | ForEach-Object { $_.Name })
-$running = @(Get-Process | Where-Object { $_.Name -match '^(nikke_launcher|tbs_browser|intl_service|INTLWebViewHelper)' })
-if ($running) { Add-Finding 'YELLOW' 'live' "NIKKE 啟動器程序正在執行：$(($running | ForEach-Object Name | Sort-Object -Unique) -join ', ')" 'Get-Process' }
+$running = @(Get-Process | Where-Object { $_.Name -match '^(nikke_launcher|df_garena_launcher|tbs_browser|intl_service|INTLWebViewHelper)' })
+if ($running) { Add-Finding 'YELLOW' 'live' "啟動器程序正在執行：$(($running | ForEach-Object Name | Sort-Object -Unique) -join ', ')" 'Get-Process' }
 $def = @(Get-MpThreatDetection)
 
 # ---------- report ----------
@@ -288,7 +300,7 @@ if ($fwOff) { Write-Host "  注意：Windows 防火牆有關閉的設定檔（$(
 Write-Host ("Defender 偵測紀錄：{0} 筆" -f $def.Count)
 Write-Host ''
 # Launcher logs are history: they stay after remediation (kept as evidence). Everything else is a live component.
-$histRx = '\\intl_service\\debug\.log$|\\log\\tinyget\\|\\TransportSecurity$|\\Network Persistent State$'
+$histRx = '\\(intl_service|service)\\debug\.log$|\\log\\tinyget\\|\\TransportSecurity$|\\Network Persistent State$'
 $redLive = @($red | Where-Object { $_.Where -notmatch $histRx })
 if ($redLive) {
   Write-Host '【結果：中毒，木馬元件仍在】先用手機改密碼（見 README），再跑 Remediate-K2F.ps1。' -ForegroundColor Red
