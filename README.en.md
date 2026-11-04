@@ -98,6 +98,7 @@ flowchart TD
 ## Limits
 
 - Known indicators only; the RAT could run arbitrary commands, so a reinstall remains the safest option.
+- **Other games**: claims that Delta Force, PUBG, Honor of Kings global and other Level Infinite titles were hit are **unconfirmed**. The author checked their own Delta Force Garena launcher (September build): it never loaded the tampered files, which says nothing about the Steam/global builds or anything after 09-27. The checker also recognises the Delta Force Garena layout; for other games pass the launcher folder with `-InstallPath`. See [docs/FACTS.md](docs/FACTS.md#其他遊戲未證實).
 - Stage 2 (HKCU, `%LOCALAPPDATA%`) is only reliable from your own PowerShell window; some sandboxed app terminals virtualize those locations.
 - Windows Defender may flag the downloaded ZIP (usually a `!ml` machine-learning name such as `Trojan:Script/Wacatac.B!ml`). The code is public for inspection; do not turn off your antivirus for it, report the false positive through Microsoft's file submission page instead. See [docs/FACTS.md](docs/FACTS.md#防毒誤報).
 - Not an official tool. Details: [docs/DEVELOPER.md](docs/DEVELOPER.md#限制).

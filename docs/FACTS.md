@@ -9,6 +9,8 @@ README、說明頁、`docs/DEVELOPER.md` 與四支腳本用到的痕跡、時間
 - **H** = HKEPC 報導（Instagram 轉貼，2026-11-04）
 - **M** = 本 repo 作者在一台中毒的港澳台版電腦上實測（2026-11-04）
 - **K** = 韓國玩家 햄찌（hamzzi）的檢查・清除工具 v3.8（2026-11-04，<https://x.com/choi_hamzzi>）。社群工具，不是樣本分析；只靠 K 的項目標「推測擴充」
+- **N** = 社群流傳的「受影響遊戲清單」：4chan 匿名貼文經 NGA 轉貼（2026-11-03），以及一則中文群組公告截圖。都沒有樣本或紀錄佐證，只當作待查線索
+- **M2** = 本 repo 作者在自己電腦上對三角洲 Garena 版啟動器的唯讀檢查（2026-11-04）
 - **D** = 防毒誤報的網路回報：<https://itch.io/post/14240566>、<https://forum.squareline.io/t/microsoft-defender-claims-trojan-script-wacatac-b-ml-on-installation-file/2681>（使用者回報，非微軟官方文件）
 
 ## 時間線
@@ -71,6 +73,14 @@ M：HSTS 雜湊是 Chromium 的算法：主機名稱轉成 DNS 線路格式（�
 
 - `%TEMP%\k2f-bcreds*`、`k2f_screen_*.jpg` — G, B
 - 這台電腦每個使用者的 TEMP 都要查，不只目前登入的使用者 — K
+
+## 其他遊戲（未證實）
+
+- 社群說法：PUBG、三角洲、王者榮耀國際版、暗區突圍、沙丘：覺醒、帝國時代 Mobile、黎明覺醒等 Level Infinite 發行的 PC 版也中了 — N（未證實）
+- 支持這說法的線索：被竄改的 `aegis-fix.min.js` 放在 `sg-gpts.playerinfinite.com/comm/assets/lib/`，路徑看起來是共用的；另外 3 個檔案有 2 個在 `nikke_launcher/` 路徑下 — G（路徑），推論
+- 反證（只限一台電腦、一個版本）：三角洲 **Garena 版**啟動器（2026-08 安裝，最後開啟 2026-09-09，早於竄改開始的 09-27）的網頁內容全部來自 `launcher.jupiterlauncher.com` 和 Garena 網域，`debug.log`、`%APPDATA%\df_garena_launcher*` 都沒有出現 `playerinfinite`、`insightjs` 或 `k2f` — M2。這不能代表 Steam 版或國際版，也不能代表 09-27 之後的版本
+- 腳本的做法：`Check-K2F.ps1` 也認得三角洲 Garena 版的資料夾結構（`launcher\service\debug.log`、`%APPDATA%\df_garena_launcher*`），並掃描所有含 `tbs_cache` 的 `%APPDATA%` 資料夾。用的痕跡和妮姬相同，前提是同一隻木馬；其他遊戲目前沒有任何公開樣本
+- `Remediate-K2F.ps1` 只處理妮姬的啟動器快取
 
 ## 已撤回、不算痕跡
 

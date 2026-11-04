@@ -98,6 +98,7 @@ flowchart TD
 ## 限制
 
 - 只能找**已知**痕跡。木馬能執行任意指令，最保險的做法仍是重灌。
+- **其他遊戲**：網路上說三角洲、PUBG、王者榮耀國際版等 Level Infinite 遊戲也中了，目前**沒有證實**。作者用自己電腦上的三角洲 Garena 版啟動器（9 月版）實測，沒有載入被竄改的檔案，但這不能代表 Steam 版、國際版或 9/27 之後的版本。檢查腳本也認得三角洲 Garena 版的資料夾，其他遊戲要用 `-InstallPath` 指定啟動器資料夾。詳見 [docs/FACTS.md](docs/FACTS.md#其他遊戲未證實)。
 - 第 2 階段（HKCU 登錄檔、`%LOCALAPPDATA%`）要在你自己開的 PowerShell 視窗跑才準；在某些沙箱化 App 的內建終端機裡，這兩處可能被虛擬化。
 - Windows Defender 可能把下載的 ZIP 誤報成病毒（名稱常帶 `!ml`）。程式全部公開可檢查，請不要為此關掉防毒；可到微軟的檔案提交頁面回報誤判。詳見 [docs/FACTS.md](docs/FACTS.md#防毒誤報)。
 - 這不是官方工具，痕跡清單會跟著原始研究更新。詳見 [docs/DEVELOPER.md](docs/DEVELOPER.md#限制)。
