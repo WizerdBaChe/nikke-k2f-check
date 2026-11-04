@@ -1,0 +1,12 @@
+# .gitignore born classified -- copied from ~/.claude/tools/asset-protection/gitignore.template.
+
+# detector JSON reports: carry machine name, agent id and local paths
+# class: secret
+reports/
+*.report.json
+
+# OS and editor droppings
+# class: regenerable
+Thumbs.db
+desktop.ini
+.vscode/

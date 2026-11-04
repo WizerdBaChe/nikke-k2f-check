@@ -1,0 +1,6 @@
+# Windows scripts and human-read docs: CRLF
+*.ps1 text eol=crlf
+*.md  text eol=crlf
+# machine-read config: LF
+.gitignore     text eol=lf
+.gitattributes text eol=lf
