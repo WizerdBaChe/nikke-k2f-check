@@ -69,6 +69,12 @@ M：HSTS 雜湊是 Chromium 的算法：主機名稱轉成 DNS 線路格式（�
 - 殘留：Chrome Application 資料夾下的 `platform_experience_helper.dll.old`、`old-clsid.txt`、`service_util.dll` — G
 - 移除順序：先刪 HKCU 登錄項 → 重開機 → 只刪 64 碼子資料夾，不刪整個 PlatformExperienceHelper — G, B, H
 - 推測擴充（只有 K）：同一個 CLSID 在 32 位元登錄（`HKCU\Software\Classes\WOW6432Node\CLSID\...`）；Edge、Brave、Vivaldi、Chromium、Opera、Opera GX 的使用者資料夾下同樣的 `PlatformExperienceHelper\<64 碼>`。公開樣本只看到 Chrome。腳本照查，但排除 Google 或 Microsoft 有效簽章的 dll
+- 這支 dll 是什麼：它是「載入器」，不是另一隻只偷瀏覽器的程式。它在被載入的程序（通常是 chrome.exe）裡找到並執行同一份 LuaJIT 木馬本體，用同一套 C2 協定連 `analytics.insightjs.com/px/<agent id>` — W（`Sample-A.dll` 分析），G（連線由 chrome.exe 發出）
+- 所以第 2 階段的意思是：同一隻遠端控制木馬改住進瀏覽器，關掉啟動器、刪掉遊戲之後，每次開 Chrome 都會再跑起來；它能做的事跟第 1 階段一樣（見「木馬會偷的東西」）— W, G
+- 開機時唯一會自己啟動的是這個 dll 加那個 HKCU 登錄項；這是木馬唯一的 Chrome 常駐方式 — G
+- 它是怎麼裝上去的：木馬本體的 `chrome_install` 指令接收攻擊者傳來的 dll（base64）寫進去；`chrome_scan`、`chrome_cleanup`、`chrome_uninstall` 負責查看與移除。不是每台中毒的電腦都有：有些受害者完全找不到 dll 與登錄項，代表攻擊者沒對那台下這個指令 — W, G
+- 錢包：dll 裡寫死 28 個錢包擴充功能的 ID（MetaMask、Phantom、OKX、Coinbase、Trust 等），並在擴充功能自己的 service worker 裡設中斷點來下手 — W。這代表它鎖定的是「錢包解鎖時的資料」，不只是硬碟上的加密檔案 — 推論
+- 「會讀網頁上輸入的密碼和錢包助記詞」：受害者回報，G 標為 reported，沒有程式碼分析佐證 — G（未證實）
 - 載入 dll 的程序：G、B 寫 chrome.exe；腳本改成查所有程序（K 的做法），因為 COM 劫持會被任何建立那個 COM 類別的程式載入 — K（推論）
 
 ## 暫存痕跡
@@ -103,4 +109,15 @@ M：HSTS 雜湊是 Chromium 的算法：主機名稱轉成 DNS 線路格式（�
 
 ## 木馬會偷的東西
 
-瀏覽器密碼與 Session Cookie（Chrome、Edge、Brave、Firefox 等）、NIKKE 帳密（啟動器儲存的）、SSH/GPG/age 金鑰、Git 憑證、環境變數、AI 工具與 MCP 設定及 API 金鑰（Claude Code、Gemini CLI、Cursor 等約 1,790 個路徑）、雲端/CI/套件庫權杖、28 種錢包擴充功能、螢幕截圖；可執行任意 shell 指令（19 種指令，含 `exec`）— G, W, H
+第 1、第 2 階段是同一份木馬本體，能拿的東西相同；差別只在它住在啟動器裡還是瀏覽器裡 — W
+
+瀏覽器部分（W 從木馬字串表還原的讀取清單）：
+- 瀏覽器：Chrome、Edge、Brave、Vivaldi、Firefox — W
+- 存起來的密碼：`Login Data`、`Login Data For Account`（Firefox 是 `logins.json` + `key4.db`）— W
+- Cookie，也就是各網站的登入狀態：`SELECT host_key, name, encrypted_value FROM cookies`。拿到 Cookie 可以不用密碼、不經兩步驟驗證直接登入，所以要「登出所有裝置」才會失效 — W；失效方式為推論
+- 解密金鑰：`Local State` 裡的金鑰，含 Chrome/Edge 新版的 App-Bound Encryption（`app_bound_encrypted_key`）。G 補充：它會借用 `services.exe` 的 SYSTEM 權杖來解這一層。所以「新版 Chrome 有加密」不能當作沒被偷 — W, G
+- 網站存在瀏覽器裡的資料：`Local Storage`、`IndexedDB`、擴充功能設定 — W
+- 28 種錢包擴充功能的資料（`wallet_files` 指令）— W
+- 沒在清單裡出現：瀏覽紀錄、自動填入的地址、信用卡卡號，W 的讀取清單沒列這幾項。但木馬能讀任意檔案，所以這不代表它們安全 — W；推論
+
+全部清單：瀏覽器密碼與 Session Cookie（Chrome、Edge、Brave、Firefox 等）、NIKKE 帳密（啟動器儲存的）、SSH/GPG/age 金鑰、Git 憑證、環境變數、AI 工具與 MCP 設定及 API 金鑰（Claude Code、Gemini CLI、Cursor 等約 1,790 個路徑）、雲端/CI/套件庫權杖、28 種錢包擴充功能、螢幕截圖；可執行任意 shell 指令（19 種指令，含 `exec`）— G, W, H
