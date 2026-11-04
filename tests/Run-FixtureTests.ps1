@@ -6,6 +6,7 @@
   PowerShell processes with APPDATA / LOCALAPPDATA / TEMP pointed at the fixture and asserts on the JSON report.
   Side effects outside -Root (all removed at the end):
     - HKCU\Software\Classes\WOW6432Node\CLSID\{E77CC89B-...} is created for one case (no dll value).
+    - four HKCU CLSID keys with random test GUIDs {6B1F0C2A-...-2E8D4B7A0F11..14} are created for the generic-variant case.
     - one helper powershell.exe loads a copy of C:\Windows\System32\version.dll for the process-module case.
   Not covered: firewall rule creation (needs admin), other users' HKCU, real launcher installs.
   Evidence rung: 0 (example tests); each check has one positive and one negative scenario, not a property.
@@ -80,6 +81,10 @@ $checkParams = @((Get-Command $check).Parameters.Keys)
 $remedParams = @((Get-Command $remed).Parameters.Keys)
 $saved = [pscustomobject]@{ APPDATA = $env:APPDATA; LOCALAPPDATA = $env:LOCALAPPDATA; TEMP = $env:TEMP; TMP = $env:TMP }
 if (Test-Path $wowKey) { throw "$wowKey already exists in this registry view; refusing to run (it would be removed at the end)." }
+# Random test GUIDs for the generic-variant case; nothing instantiates them.
+$genIds = @{ P9 = '{6B1F0C2A-9D7E-4F3B-A5C1-2E8D4B7A0F11}'; P9b = '{6B1F0C2A-9D7E-4F3B-A5C1-2E8D4B7A0F12}'; N9 = '{6B1F0C2A-9D7E-4F3B-A5C1-2E8D4B7A0F13}'; N9b = '{6B1F0C2A-9D7E-4F3B-A5C1-2E8D4B7A0F14}' }
+$genKeys = @{ P9 = "HKCU:\Software\Classes\CLSID\$($genIds.P9)"; P9b = "HKCU:\Software\Classes\WOW6432Node\CLSID\$($genIds.P9b)"; N9 = "HKCU:\Software\Classes\CLSID\$($genIds.N9)"; N9b = "HKCU:\Software\Classes\WOW6432Node\CLSID\$($genIds.N9b)" }
+foreach ($k in $genKeys.Values) { if (Test-Path $k) { throw "$k already exists; refusing to run." } }
 New-Dir $Root | Out-Null
 Write-Host "fixture root: $Root"
 $helper = $null
@@ -206,10 +211,37 @@ try {
   Assert ((-not (Test-Path $dfHit)) -and (Test-Path "$q\df_garena_launcher-tbs_cache\Network Persistent State")) 'R2 apply: df_garena_launcher cache with insightjs moved to quarantine'
   Assert ((Test-Path $clean) -and -not (Test-Path "$q\other_app-tbs_cache")) 'R2 apply: cache without indicators left in place'
   Assert (Test-Path "$q\launcher-logs\debug.log") 'R2 apply: service\debug.log copied as evidence'
+
+  Write-Host "`n[P9/N9/R3] generic variant: other HKCU CLSIDs pointing where the dll sits (random test GUIDs)"
+  $c = New-Case 'p9'
+  $pehDll = New-File "$($c.Local)\Google\Chrome\User Data\PlatformExperienceHelper\$hex\other_name.dll" ('MZ' + ('x' * 100))
+  $udDll = New-File "$($c.Dir)\SomeBrowser\User Data\Default\helper.dll" ('MZ' + ('x' * 100))
+  $okDll = "$(New-Dir "$($c.Dir)\Edge\User Data\ok")\version.dll"; Copy-Item "$env:SystemRoot\System32\version.dll" $okDll
+  foreach ($g in $genKeys.Keys) { New-Item -Path "$($genKeys[$g])\InprocServer32" -Force | Out-Null }
+  Set-Item -Path "$($genKeys.P9)\InprocServer32" -Value $pehDll
+  Set-Item -Path "$($genKeys.P9b)\InprocServer32" -Value $udDll
+  Set-Item -Path "$($genKeys.N9)\InprocServer32" -Value "$env:SystemRoot\System32\version.dll"
+  Set-Item -Path "$($genKeys.N9b)\InprocServer32" -Value $okDll
+  $r = Invoke-Check $c
+  Assert (Has-Finding $r 'RED' "HKCU\Software\Classes\CLSID\$($genIds.P9)") 'P9 RED for other CLSID -> PlatformExperienceHelper\<64-hex> (64-bit view)'
+  Assert (Has-Finding $r 'RED' "HKCU\Software\Classes\WOW6432Node\CLSID\$($genIds.P9b)") 'P9b RED for other CLSID -> unsigned dll under User Data (32-bit view)'
+  Assert (-not (Has-Finding $r 'RED' "*$($genIds.N9)")) 'N9 CLSID -> System32 dll not flagged'
+  Assert (-not (Has-Finding $r 'RED' "*$($genIds.N9b)")) 'N9b CLSID -> Microsoft-signed dll under User Data not flagged'
+  Assert ($r.Report.Verdict -eq 'infected-live' -and $r.Code -eq 3) 'P9 counts as live, exit 3'
+  $o = Invoke-Remediate $c
+  Assert ((Test-Path $genKeys.P9) -and (Test-Path $genKeys.P9b) -and (Test-Path $udDll)) 'R3 dry-run leaves keys and dll in place'
+  $o = Invoke-Remediate $c -Apply
+  $q = "$($c.Dir)\quarantine"
+  Assert (-not (Test-Path $genKeys.P9) -and -not (Test-Path $genKeys.P9b)) 'R3 apply: both suspect keys removed'
+  Assert ((Test-Path $genKeys.N9) -and (Test-Path $genKeys.N9b)) 'R3 apply: benign keys kept'
+  Assert ((Test-Path "$q\hkcu-clsid-$($genIds.P9.Trim('{}')).reg") -and (Test-Path "$q\hkcu-wow6432node-clsid-$($genIds.P9b.Trim('{}')).reg")) 'R3 apply: both keys exported before removal'
+  Assert (-not (Test-Path $udDll) -and (Test-Path "$q\com-dll\$($genIds.P9b.Trim('{}'))-helper.dll.quarantined")) 'R3 apply: User Data dll moved to quarantine'
+  Assert (-not (Test-Path $pehDll) -and (Test-Path "$q\com-dll\$($genIds.P9.Trim('{}'))-other_name.dll.quarantined") -and (Test-Path $okDll)) 'R3 apply: renamed dll in a 64-hex folder moved by step 2, signed dll untouched'
 } finally {
   $env:APPDATA = $saved.APPDATA; $env:LOCALAPPDATA = $saved.LOCALAPPDATA; $env:TEMP = $saved.TEMP; $env:TMP = $saved.TMP
   if ($helper) { Stop-Process -Id $helper.Id -Force -ErrorAction SilentlyContinue }
   if (Test-Path $wowKey) { Remove-Item $wowKey -Recurse -Force }
+  foreach ($k in $genKeys.Values) { if (Test-Path $k) { Remove-Item $k -Recurse -Force } }
   Start-Sleep -Milliseconds 500
   Remove-Item -LiteralPath $Root -Recurse -Force -ErrorAction SilentlyContinue
 }
