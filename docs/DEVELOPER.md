@@ -68,7 +68,8 @@ flowchart LR
 | infected-live | 有 RED，且至少一筆不在 `debug.log` / `tinyget` 底下（元件仍在） | 3 |
 | infected-history | RED 全部只在 `debug.log` / `tinyget` / 啟動器網路紀錄 `TransportSecurity`、`Network Persistent State`（都是過去的紀錄，不是元件） | 2 |
 | contact | 只有 YELLOW | 1 |
-| clean-known | 沒有任何發現 | 0 |
+| incomplete | 沒有任何發現，但有該檢查的檔案讀不到（被鎖住、沒權限、超過 64 MB）；清單在報告的 `Unreadable` | 4 |
+| clean-known | 沒有任何發現，該讀的檔案都讀到了 | 0 |
 
 - 字串比對一律讀位元組（Latin-1 一對一解碼），同時比 ASCII 與 UTF-16LE。原因：leveldb 與 Code Cache 是二進位檔，`Select-String` 在實測機上漏抓 `k2f.agent.state`。
 - 檢查範圍是目前使用者，加上 `-UsersRoot`（預設 `C:\Users`）底下讀得到的每個使用者資料夾：啟動器快取、瀏覽器資料夾、TEMP。其他使用者的 HKCU 登錄要用那個帳號登入再跑。使用者清單的邏輯在 `Check-K2F.ps1` 第 0a 段與 `Remediate-K2F.ps1` 開頭各有一份，要一起改。

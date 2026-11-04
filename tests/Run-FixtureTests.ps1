@@ -245,6 +245,27 @@ try {
   Assert ((Test-Path "$q\hkcu-clsid-$($genIds.P9.Trim('{}')).reg") -and (Test-Path "$q\hkcu-wow6432node-clsid-$($genIds.P9b.Trim('{}')).reg")) 'R3 apply: both keys exported before removal'
   Assert (-not (Test-Path $udDll) -and (Test-Path "$q\com-dll\$($genIds.P9b.Trim('{}'))-helper.dll.quarantined")) 'R3 apply: User Data dll moved to quarantine'
   Assert (-not (Test-Path $pehDll) -and (Test-Path "$q\com-dll\$($genIds.P9.Trim('{}'))-other_name.dll.quarantined") -and (Test-Path $okDll)) 'R3 apply: renamed dll in a 64-hex folder moved by step 2, signed dll untouched'
+
+  Write-Host "`n[R4] .reg backup fails: the key must stay (R3 above is the same key with a working backup, removed)"
+  $c = New-Case 'r4'
+  $pehDll = New-File "$($c.Local)\Google\Chrome\User Data\PlatformExperienceHelper\$hex\other_name.dll" ('MZ' + ('x' * 100))
+  New-Item -Path "$($genKeys.P9)\InprocServer32" -Force | Out-Null
+  Set-Item -Path "$($genKeys.P9)\InprocServer32" -Value $pehDll
+  New-File "$($c.Dir)\quarantine" 'a file where the quarantine folder should be' | Out-Null   # reg export cannot write under it
+  $o = Invoke-Remediate $c -Apply
+  Assert (Test-Path $genKeys.P9) 'R4 key kept when its export failed'
+  Assert ($o -match [regex]::Escape("略過刪除 HKCU\Software\Classes\CLSID\$($genIds.P9)")) 'R4 skipped deletion is reported'
+  if (Test-Path $genKeys.P9) { Remove-Item $genKeys.P9 -Recurse -Force }   # later cases expect no suspect key
+
+  Write-Host "`n[P10/N10] a file that cannot be read makes the result incomplete, not clean"
+  $c = New-Case 'p10'
+  $ts = New-File "$($c.Roaming)\nikke_launcher\tbs_cache\TransportSecurity" '{"sts":[]}'
+  $lock = [IO.File]::Open($ts, 'Open', 'Read', 'None')
+  try { $r = Invoke-Check $c } finally { $lock.Close() }
+  Assert ($r.Report.Verdict -eq 'incomplete' -and $r.Code -eq 4) "P10 locked file: verdict incomplete, exit 4 (got $($r.Report.Verdict), $($r.Code))"
+  Assert (@($r.Report.Unreadable) -contains $ts) 'P10 the locked file is listed as unreadable'
+  $r = Invoke-Check $c
+  Assert ($r.Report.Verdict -eq 'clean-known' -and $r.Code -eq 0 -and $r.Report.UnreadableCount -eq 0) "N10 same file unlocked: clean-known, exit 0 (got $($r.Report.Verdict), $($r.Code))"
 } finally {
   $env:APPDATA = $saved.APPDATA; $env:LOCALAPPDATA = $saved.LOCALAPPDATA; $env:TEMP = $saved.TEMP; $env:TMP = $saved.TMP
   if ($helper) { Stop-Process -Id $helper.Id -Force -ErrorAction SilentlyContinue }

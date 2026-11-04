@@ -32,6 +32,9 @@ $Latin1 = [Text.Encoding]::GetEncoding(28591)   # 1 byte -> 1 char, lossless
 $findings = New-Object System.Collections.ArrayList
 $timeline = New-Object System.Collections.ArrayList
 $checked  = New-Object System.Collections.ArrayList
+# Files that should have been searched but could not be opened (locked, denied) or were over the size cap.
+# A clean verdict with any of these is reported as incomplete, never as clean.
+$unreadable = New-Object System.Collections.ArrayList
 
 function Add-Finding([string]$Level, [string]$Stage, [string]$What, [string]$Where) {
   [void]$findings.Add([pscustomobject]@{ Level = $Level; Stage = $Stage; What = $What; Where = $Where })
@@ -40,11 +43,13 @@ function Add-Finding([string]$Level, [string]$Stage, [string]$What, [string]$Whe
 # Byte search: returns $true when any needle appears as ASCII or UTF-16LE.
 function Test-Bytes([string]$Path, [string[]]$Needles, [long]$MaxBytes = 64MB) {
   $fi = Get-Item -LiteralPath $Path -Force
-  if (-not $fi -or $fi.PSIsContainer -or $fi.Length -gt $MaxBytes) { return $false }
+  if (-not $fi) { [void]$unreadable.Add($Path); return $false }
+  if ($fi.PSIsContainer) { return $false }
+  if ($fi.Length -gt $MaxBytes) { [void]$unreadable.Add("$Path (over $([int]($MaxBytes / 1MB)) MB)"); return $false }
   try {
     $fs = [IO.File]::Open($Path, 'Open', 'Read', 'ReadWrite,Delete')
     $buf = New-Object byte[] $fs.Length; [void]$fs.Read($buf, 0, $buf.Length); $fs.Close()
-  } catch { return $false }
+  } catch { [void]$unreadable.Add($Path); return $false }
   $s = $Latin1.GetString($buf)
   foreach ($n in $Needles) {
     if ($s.IndexOf($n, [StringComparison]::Ordinal) -ge 0) { return $true }
@@ -59,7 +64,7 @@ function Read-Latin1([string]$Path) {
     $fs = [IO.File]::Open($Path, 'Open', 'Read', 'ReadWrite,Delete')
     $buf = New-Object byte[] $fs.Length; [void]$fs.Read($buf, 0, $buf.Length); $fs.Close()
     return $Latin1.GetString($buf)
-  } catch { return '' }
+  } catch { [void]$unreadable.Add($Path); return '' }
 }
 
 # ---------- 0a. user profiles: current user + every readable profile under -UsersRoot ----------
@@ -130,7 +135,9 @@ foreach ($L in $launchers) {
   $dbg = Get-ChildItem $L -Recurse -Force -Filter debug.log | Where-Object { $_.DirectoryName -match '\\(intl_service|service)$' }
   foreach ($f in $dbg) {
     [void]$checked.Add($f.FullName)
-    $lines = Get-Content -LiteralPath $f.FullName
+    $gcErr = $null
+    $lines = Get-Content -LiteralPath $f.FullName -ErrorVariable gcErr
+    if ($gcErr) { [void]$unreadable.Add($f.FullName) }
     $reg = @($lines | Where-Object { $_ -like '*k2f_chan registered*' })
     $adp = @($lines | Where-Object { $_ -match '"(adopted|resuming) [0-9a-f-]{36}"' })
     $agt = @($lines | Where-Object { $_ -like '*agent started as*' })
@@ -333,10 +340,17 @@ if ($redLive) {
   Write-Host '  沒辦法重灌的話，再跑 Sweep-Persistence.ps1 找有沒有被另外放進來的東西。' -ForegroundColor Red
 } elseif ($yel) {
   Write-Host '【結果：有接觸，未見木馬啟動】建議改 NIKKE 與重要帳號密碼，並清啟動器快取。' -ForegroundColor Yellow
+} elseif ($unreadable.Count) {
+  Write-Host "【結果：檢查不完整】讀到的部分沒有已知痕跡，但有 $($unreadable.Count) 個該檢查的檔案讀不到，不能算乾淨。關掉啟動器（或重新開機）後再跑一次。" -ForegroundColor Yellow
 } elseif ($launchers) {
   Write-Host '【結果：沒發現已知痕跡】不代表百分之百安全。' -ForegroundColor Green
 } else {
   Write-Host '【結果：沒發現已知痕跡】但找不到啟動器安裝資料夾：已經刪掉遊戲的話，啟動器紀錄也跟著沒了，無法確認以前有沒有中毒。還在的話請用 -InstallPath 指定再跑一次。' -ForegroundColor Green
+}
+if ($unreadable.Count) {
+  Write-Host "讀不到的檔案：$($unreadable.Count) 個（被其他程式鎖住、沒有權限，或太大）" -ForegroundColor Yellow
+  $unreadable | Select-Object -First 10 | ForEach-Object { Write-Host "  $_" -ForegroundColor DarkGray }
+  if ($unreadable.Count -gt 10) { Write-Host "  ……另外 $($unreadable.Count - 10) 個" -ForegroundColor DarkGray }
 }
 if (-not ($findings | Where-Object Stage -eq '2')) {
   Write-Host '※ 第 2 階段（Chrome 常駐）未見痕跡；但這只在你自己的 PowerShell 視窗執行時才可信。' -ForegroundColor DarkGray
@@ -344,11 +358,12 @@ if (-not ($findings | Where-Object Stage -eq '2')) {
 
 if ($ReportPath) {
   [pscustomobject]@{
-    GeneratedAt = (Get-Date).ToString('s'); Verdict = $(if ($redLive) { 'infected-live' } elseif ($red) { 'infected-history' } elseif ($yel) { 'contact' } else { 'clean-known' })
+    GeneratedAt = (Get-Date).ToString('s'); Verdict = $(if ($redLive) { 'infected-live' } elseif ($red) { 'infected-history' } elseif ($yel) { 'contact' } elseif ($unreadable.Count) { 'incomplete' } else { 'clean-known' })
+    UnreadableCount = $unreadable.Count; Unreadable = $unreadable
     Launchers = $launchers; Findings = $findings; Timeline = $tl
     Agent = $agentInfo; HostsBlocked = $blocked; FirewallBlocked = $fwBlocked; FirewallProfilesOff = $fwOff
     Profiles = @($profiles | ForEach-Object { $_.Name }); DefenderDetections = $def.Count; Checked = $checked
   } | ConvertTo-Json -Depth 5 | Out-File -LiteralPath $ReportPath -Encoding utf8
   Write-Host "報告已寫入：$ReportPath"
 }
-if ($redLive) { exit 3 } elseif ($red) { exit 2 } elseif ($yel) { exit 1 } else { exit 0 }
+if ($redLive) { exit 3 } elseif ($red) { exit 2 } elseif ($yel) { exit 1 } elseif ($unreadable.Count) { exit 4 } else { exit 0 }

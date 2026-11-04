@@ -11,7 +11,8 @@
 - Launcher layouts recognised: NIKKE (`launcher\intl_service`, `%APPDATA%\nikke_launcher*`) and Delta Force Garena (`launcher\service\debug.log`, `%APPDATA%\df_garena_launcher*`); any `%APPDATA%` folder with a `tbs_cache` is also scanned. Other games being affected is unconfirmed (`docs/FACTS.md`, section 其他遊戲); for another game pass its launcher folder with `-InstallPath`. `Remediate-K2F.ps1` quarantines a non-NIKKE cache only when it contains an `insightjs` or `k2f.agent.state` indicator.
 - `tests/Run-FixtureTests.ps1` runs fixture tests (one positive and one negative case per check); it creates and then removes five HKCU keys (the known CLSID in the 32-bit view and four random test GUIDs).
 - Every indicator and its source is in `docs/FACTS.md`; verdict logic and verification are in `docs/DEVELOPER.md`.
-- `Check-K2F.ps1` exit codes: 3 infected with live components, 2 infected with history only, 1 contact, 0 nothing known.
+- `Check-K2F.ps1` exit codes: 3 infected with live components, 2 infected with history only, 1 contact, 4 nothing found but some files could not be read (incomplete, listed in the report's `Unreadable`), 0 nothing known.
+- `Remediate-K2F.ps1` deletes a registry key only after its `.reg` export succeeded; a failed export leaves the key in place and is reported as a failure.
 - Stage-2 checks read HKCU and `%LOCALAPPDATA%`. If your shell runs inside a packaged (MSIX) app, those views can be virtualized and differ from the user's own shell; then ask the user to run the script in their own PowerShell window and paste the output.
 - Reports may contain the computer name, agent id and local paths; `agent_pass` is never printed.
 

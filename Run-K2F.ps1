@@ -42,6 +42,10 @@ if (-not $Fix) {
     Write-Host '沒有發現已知痕跡。9 月 27 日之後開過電腦版啟動器的話，重要帳號的密碼還是建議換掉。' -ForegroundColor Green
     Wait-Key; exit 0
   }
+  if ($code -eq 4) {
+    Write-Host '有些檔案讀不到，這次檢查不完整（不代表中毒）。請關掉 NIKKE 啟動器，或重新開機後再執行一次這個檔案。' -ForegroundColor Yellow
+    Wait-Key; exit 4
+  }
   Write-Host '這台電腦有痕跡。請先用「手機」換掉重要帳號的密碼，並在各網站按「登出所有裝置」：' -ForegroundColor Yellow
   Write-Host '  Google（也是 Chrome 的密碼庫）、Discord、Steam、Level Infinite（NIKKE）、銀行、加密貨幣錢包。' -ForegroundColor Yellow
   Write-Host '  說明頁：https://wizerdbache.github.io/nikke-k2f-check/' -ForegroundColor Yellow
