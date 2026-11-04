@@ -420,10 +420,11 @@ li{margin:4px 0}
 #side ~ main{margin-left:var(--pdl-side-w)}
 @media (max-width:920px){#side{width:auto} #side ~ main{margin-left:0}}
 </style>
-<meta name="carrier-stamp" content="{&quot;body_sha256&quot;: &quot;672cb1a95593ad07355d1368ebfc09d56c25e45d78a0ae585723de15935ae87d&quot;, &quot;built_at&quot;: &quot;2026-11-04T15:58:43Z&quot;, &quot;carrier&quot;: &quot;html-explainer&quot;, &quot;content_sha256&quot;: &quot;b128ae582a45d98884d5c50da1ed79245936a3630c5bcdb0410a6dd018de86c3&quot;, &quot;schema&quot;: &quot;explainer/2&quot;, &quot;version&quot;: 11}">
+<meta name="carrier-stamp" content="{&quot;body_sha256&quot;: &quot;6b70345046b38a6e6b1f1f751f0c2fbfb3def973d07e7164524aa9070c6e28dd&quot;, &quot;built_at&quot;: &quot;2026-11-04T16:20:36Z&quot;, &quot;carrier&quot;: &quot;html-explainer&quot;, &quot;content_sha256&quot;: &quot;8a3395b517b161d5ea474922a0d7eae961faa49f4cba994f2b7416d87a49c103&quot;, &quot;schema&quot;: &quot;explainer/2&quot;, &quot;version&quot;: 11}">
 </head>
 <body>
 <nav id="side" aria-label="章節導覽"><h1>NIKKE 啟動器木馬：自我檢查與處理</h1><div class="sub">一分鐘查出有沒有中，中了照順序處理</div>
+<a class="l1" href="#easy" data-sec>最簡單：下載一個檔案、雙擊</a>
 <a class="l1" href="#deltaforce" data-sec>三角洲玩家看這裡</a>
 <a class="l1" href="#wuwa" data-sec>鳴潮玩家看這裡</a>
 <a class="l1" href="#who" data-sec>你需要檢查嗎</a>
@@ -437,13 +438,19 @@ li{margin:4px 0}
 <a class="l1" href="#x_glossary" data-sec>詞彙</a>
 <a class="l1" href="#x_refs" data-sec>出處</a>
 </nav>
-<main data-sections="deltaforce,wuwa,who,check,verdict,fix,noreinstall,reopen,limits">
+<main data-sections="easy,deltaforce,wuwa,who,check,verdict,fix,noreinstall,reopen,limits">
 <header class="pagehead">
 <div class="eyebrow">2026-11-04</div>
 <h1 class="title">NIKKE 啟動器木馬：自我檢查與處理</h1>
 <p class="lead">一分鐘查出有沒有中，中了照順序處理</p>
 </header>
 <div class="box def"><span class="tag">閱讀目的</span>看完之後你知道：自己有沒有中、中了先做什麼、什麼時候可以再打開啟動器。</div>
+<section class="ch" id="easy" data-kind="content">
+<h2>最簡單：下載一個檔案、雙擊</h2>
+<div class="chsub">下載 nikke-k2f-check.cmd，雙擊，看結果；有痕跡才會問你要不要清除。</div>
+<ol class="steps" role="list"><li><span class="st-t">下載</span><span class="st-d">打開 <span class="ref" tabindex="0" data-key="單一檔案下載">單一檔案下載</span> 的連結（在本頁最下面「出處」裡可以直接點）。瀏覽器說「這類檔案可能有害」的話，選「保留」。</span></li><li><span class="st-t">雙擊</span><span class="st-d">到「下載」資料夾雙擊 nikke-k2f-check.cmd。出現藍色的「Windows 已保護您的電腦」，按「其他資訊」→「仍要執行」。</span></li><li><span class="st-t">看結果</span><span class="st-d">等 30 秒到 1 分鐘，看視窗最後幾行，對照 <a href="#verdict">結果怎麼看</a>。</span></li><li><span class="st-t">要清除的話</span><span class="st-d">有找到痕跡，它會問要不要清除。<b>先用手機換密碼</b>（見 <a href="#fix">中了之後的處理</a>），再輸入 Y。系統管理員視窗按「是」，它會先列出一份編號的「總結」清單（常被忘記的 nikke_launcher_HMT 啟動器快取也在裡面），再問一次 Y 才動手；做完每一項會標成功或失敗。東西只搬到隔離資料夾，不刪除。</span></li></ol>
+<div class="box src" data-kind="note"><span class="tag">這個檔案安全嗎？</span>它裡面就是這套工具的三支程式，打包成文字。執行時把它們放到暫存資料夾、核對沒被改過才跑，<b>不會從網路下載任何東西</b>；沒有回答兩次 Y 就不會改電腦。每一版的 SHA-256 在 <span class="ref" tabindex="0" data-key="各版本與 SHA-256">各版本與 SHA-256</span>，從別人轉傳拿到的檔案請先核對。會用終端機的人，也可以照 <a href="#check">三個步驟檢查</a> 一步一步自己跑。</div>
+</section>
 <section class="ch" id="deltaforce" data-kind="content">
 <h2>三角洲玩家看這裡</h2>
 <div class="chsub">台港澳的三角洲（Garena 代理版）目前看來不受影響；想安心可以掃一次。</div>
@@ -470,6 +477,7 @@ li{margin:4px 0}
 <section class="ch" id="check" data-kind="content">
 <h2>三個步驟檢查</h2>
 <div class="chsub">下載、打開終端機、貼一行，再看最後一行結果。只讀檔案，不改任何東西。</div>
+<p>不想開終端機的話，用 <a href="#easy">最簡單：下載一個檔案、雙擊</a> 就好。下面是自己一步一步跑的做法；下載的 ZIP 裡也有 Run-Check.cmd，雙擊效果和單一檔案相同。</p>
 <ol class="steps" role="list"><li><span class="st-t">下載工具</span><span class="st-d">到 <span class="ref" tabindex="0" data-key="工具原始碼">工具原始碼</span> 頁面按綠色的 Code → Download ZIP，解壓縮到「下載」資料夾，會得到一個 nikke-k2f-check-main 資料夾。</span></li><li><span class="st-t">打開終端機</span><span class="st-d">在開始按鈕上按右鍵，選「終端機」或「Windows PowerShell」。看 <span class="sym" tabindex="0" data-key="終端機">終端機</span>。</span></li><li><span class="st-t">貼上指令</span><span class="st-d">按下方框框右上角的「複製」，在終端機視窗裡按右鍵貼上，再按 Enter。</span></li></ol>
 <div class="box warn" data-kind="warn"><span class="tag">防毒說這個 ZIP 有病毒？</span>Windows 內建防毒（Defender）有時會把剛下載的 ZIP 誤判成病毒。名稱裡有 !ml 的（例如 Trojan:Script/Wacatac.B!ml）是機器學習「覺得像」，不是比對到已知病毒。這套工具為了清木馬，本來就會結束程式、改 hosts、加防火牆規則，這些動作看起來很像惡意程式。程式全部公開在 <span class="ref" tabindex="0" data-key="工具原始碼">工具原始碼</span>，可以自己或請懂電腦的朋友看過。<b>不要為了它關掉防毒</b>；可以到微軟的檔案提交頁面回報誤判。</div>
 <div class="codeblock"><div class="codecap">檢查（只讀）</div><div class="codebar"><span class="codelang">powershell</span><button type="button" class="copy-feedback-button" hidden>複製</button></div><pre tabindex="0"><code class="language-powershell">powershell -ExecutionPolicy Bypass -File &quot;$HOME\Downloads\nikke-k2f-check-main\Check-K2F.ps1&quot;</code></pre></div>
@@ -520,7 +528,7 @@ li{margin:4px 0}
 </section>
 <section class="ch" id="x_refs" data-kind="refs">
 <h2>出處</h2>
-<ol class="refs"><li id="r_gist"><span class="rl">MotherSphere 技術整理</span> — 完整的痕跡清單、時間線與移除順序。 <a href="https://gist.github.com/MotherSphere/d6c049a09ba8ac3085c51ee9df24a4e5" rel="noopener">https://gist.github.com/MotherSphere/d6c049a09ba8ac3085c51ee9df24a4e5</a></li><li id="r_wormw"><span class="rl">WormW 樣本分析</span> — 木馬本體的行為分析與偵測規則。 <a href="https://github.com/WormW/nikke_malware_analysis" rel="noopener">https://github.com/WormW/nikke_malware_analysis</a></li><li id="r_baha"><span class="rl">巴哈姆特整理文</span> — 中文懶人包與判斷標準。 <a href="https://m.gamer.com.tw/forum/C.php?bsn=36390&amp;snA=23304" rel="noopener">https://m.gamer.com.tw/forum/C.php?bsn=36390&amp;snA=23304</a></li><li id="r_repo"><span class="rl">工具原始碼</span> — 四支 PowerShell 腳本，下載前可以先看內容。 <a href="https://github.com/WizerdBaChe/nikke-k2f-check" rel="noopener">https://github.com/WizerdBaChe/nikke-k2f-check</a></li></ol>
+<ol class="refs"><li id="r_dl"><span class="rl">單一檔案下載</span> — nikke-k2f-check.cmd：下載後雙擊就開始檢查。 <a href="https://github.com/WizerdBaChe/nikke-k2f-check/releases/latest/download/nikke-k2f-check.cmd" rel="noopener">https://github.com/WizerdBaChe/nikke-k2f-check/releases/latest/download/nikke-k2f-check.cmd</a></li><li id="r_rel"><span class="rl">各版本與 SHA-256</span> — 每一版單一檔案的發布頁，附檔案的 SHA-256，可以核對。 <a href="https://github.com/WizerdBaChe/nikke-k2f-check/releases" rel="noopener">https://github.com/WizerdBaChe/nikke-k2f-check/releases</a></li><li id="r_gist"><span class="rl">MotherSphere 技術整理</span> — 完整的痕跡清單、時間線與移除順序。 <a href="https://gist.github.com/MotherSphere/d6c049a09ba8ac3085c51ee9df24a4e5" rel="noopener">https://gist.github.com/MotherSphere/d6c049a09ba8ac3085c51ee9df24a4e5</a></li><li id="r_wormw"><span class="rl">WormW 樣本分析</span> — 木馬本體的行為分析與偵測規則。 <a href="https://github.com/WormW/nikke_malware_analysis" rel="noopener">https://github.com/WormW/nikke_malware_analysis</a></li><li id="r_baha"><span class="rl">巴哈姆特整理文</span> — 中文懶人包與判斷標準。 <a href="https://m.gamer.com.tw/forum/C.php?bsn=36390&amp;snA=23304" rel="noopener">https://m.gamer.com.tw/forum/C.php?bsn=36390&amp;snA=23304</a></li><li id="r_repo"><span class="rl">工具原始碼</span> — 四支 PowerShell 腳本，下載前可以先看內容。 <a href="https://github.com/WizerdBaChe/nikke-k2f-check" rel="noopener">https://github.com/WizerdBaChe/nikke-k2f-check</a></li></ol>
 </section>
 <footer class="buildinfo"><p>日期 <span class="val">2026-11-04</span>　｜　作者 WizerdBaChe</p><p>痕跡清單整理自 MotherSphere 技術整理、WormW 樣本分析與巴哈姆特整理文；工具原始碼在 github.com/WizerdBaChe/nikke-k2f-check，MIT 授權。這不是官方工具。</p></footer>
 </main>
@@ -531,8 +539,8 @@ li{margin:4px 0}
 <div id="pins" aria-label="釘選的預覽卡片"></div>
 <button id="backpill" type="button">↩ 返回（Backspace）</button>
 <script type="application/json" id="previews">{}</script>
-<script type="application/json" id="rail-data">{"deltaforce":{"s":"台港澳的三角洲（Garena 代理版）目前看來不受影響；想安心可以掃一次。","t":["Garena 版不經過這次被竄改的伺服器","想確認：照 三個步驟檢查 跑，工具會自動找到"]},"wuwa":{"s":"《鳴潮》的官方啟動器版和 Steam 版目前看來都不受影響。","t":["鳴潮用的是庫洛自己的啟動器","想安心：照 三個步驟檢查 跑，瀏覽器那部分照樣會查"]},"who":{"s":"9 月 27 日之後在電腦上開過啟動器，就建議檢查。","t":["只玩手機版：目前沒有出事回報","檢查完之前先別開電腦版"]},"check":{"s":"下載、打開終端機、貼一行，再看最後一行結果。只讀檔案，不改任何東西。"},"verdict":{"s":"四種結果；紅字分第 1、第 2 階段。","t":["看到階段 2：處理完前 Chrome 不要登入任何帳號"]},"fix":{"s":"先用手機換密碼，再用處理工具清掉元件。","t":["換密碼工具做不到，要你自己來","處理工具只搬不刪"]},"noreinstall":{"s":"重灌最保險；不能重灌就跑後門掃描，再做 Defender 完整掃描。"},"reopen":{"s":"不必只信官方說法：自己比對 4 個檔案的指紋。","t":["4 個都乾淨才算","隔幾小時多查幾次"]},"limits":{"s":"只找已知痕跡；處理只搬不刪；不是官方工具。"}}</script>
-<script>window.SITE_REFS = {"MotherSphere 技術整理":{"t":"MotherSphere 技術整理","d":"完整的痕跡清單、時間線與移除順序。","s":"#r_gist","n":true},"WormW 樣本分析":{"t":"WormW 樣本分析","d":"木馬本體的行為分析與偵測規則。","s":"#r_wormw","n":true},"巴哈姆特整理文":{"t":"巴哈姆特整理文","d":"中文懶人包與判斷標準。","s":"#r_baha","n":true},"工具原始碼":{"t":"工具原始碼","d":"四支 PowerShell 腳本，下載前可以先看內容。","s":"#r_repo","n":true}};
+<script type="application/json" id="rail-data">{"easy":{"s":"下載 nikke-k2f-check.cmd，雙擊，看結果；有痕跡才會問你要不要清除。","t":["下載連結在 單一檔案下載","有痕跡：先用手機換密碼，再按 Y"]},"deltaforce":{"s":"台港澳的三角洲（Garena 代理版）目前看來不受影響；想安心可以掃一次。","t":["Garena 版不經過這次被竄改的伺服器","想確認：照 三個步驟檢查 跑，工具會自動找到"]},"wuwa":{"s":"《鳴潮》的官方啟動器版和 Steam 版目前看來都不受影響。","t":["鳴潮用的是庫洛自己的啟動器","想安心：照 三個步驟檢查 跑，瀏覽器那部分照樣會查"]},"who":{"s":"9 月 27 日之後在電腦上開過啟動器，就建議檢查。","t":["只玩手機版：目前沒有出事回報","檢查完之前先別開電腦版"]},"check":{"s":"下載、打開終端機、貼一行，再看最後一行結果。只讀檔案，不改任何東西。"},"verdict":{"s":"四種結果；紅字分第 1、第 2 階段。","t":["看到階段 2：處理完前 Chrome 不要登入任何帳號"]},"fix":{"s":"先用手機換密碼，再用處理工具清掉元件。","t":["換密碼工具做不到，要你自己來","處理工具只搬不刪"]},"noreinstall":{"s":"重灌最保險；不能重灌就跑後門掃描，再做 Defender 完整掃描。"},"reopen":{"s":"不必只信官方說法：自己比對 4 個檔案的指紋。","t":["4 個都乾淨才算","隔幾小時多查幾次"]},"limits":{"s":"只找已知痕跡；處理只搬不刪；不是官方工具。"}}</script>
+<script>window.SITE_REFS = {"單一檔案下載":{"t":"單一檔案下載","d":"nikke-k2f-check.cmd：下載後雙擊就開始檢查。","s":"#r_dl","n":true},"各版本與 SHA-256":{"t":"各版本與 SHA-256","d":"每一版單一檔案的發布頁，附檔案的 SHA-256，可以核對。","s":"#r_rel","n":true},"MotherSphere 技術整理":{"t":"MotherSphere 技術整理","d":"完整的痕跡清單、時間線與移除順序。","s":"#r_gist","n":true},"WormW 樣本分析":{"t":"WormW 樣本分析","d":"木馬本體的行為分析與偵測規則。","s":"#r_wormw","n":true},"巴哈姆特整理文":{"t":"巴哈姆特整理文","d":"中文懶人包與判斷標準。","s":"#r_baha","n":true},"工具原始碼":{"t":"工具原始碼","d":"四支 PowerShell 腳本，下載前可以先看內容。","s":"#r_repo","n":true}};
 window.SITE_SYMS = {"啟動器":{"t":"啟動器 — launcher","d":"電腦版 NIKKE 開遊戲前出現的那個視窗。它會從網路載入公告和網頁，這次出事的就是它載入的程式。","s":"#g_launcher","n":true},"CDN":{"t":"CDN — content delivery network","d":"官方用來把檔案發到世界各地的伺服器群。各地有很多節點，你連到的不一定是同一台。","s":"#g_cdn","n":true},"木馬":{"t":"木馬 — remote access trojan","d":"讓攻擊者可以遠端操作你電腦的程式：執行指令、截圖、偷存在電腦裡的密碼和金鑰。","s":"#g_trojan","n":true},"檔案指紋":{"t":"檔案指紋 — ETag","d":"伺服器給每個檔案版本的一串代號。檔案內容一變，代號就跟著變，所以可以拿來比對是不是乾淨的版本。","s":"#g_etag","n":true},"隔離資料夾":{"t":"隔離資料夾 — quarantine folder","d":"處理工具把可疑檔案搬去的地方，在你的使用者資料夾底下。東西沒有被刪掉，只是搬走並改名，不會再被載入。","s":"#g_quarantine","n":true},"終端機":{"t":"終端機 — PowerShell","d":"Windows 內建輸入指令的視窗。在開始按鈕上按右鍵，選「終端機」或「Windows PowerShell」就會打開。","s":"#g_terminal","n":true}};</script>
 <script>
 /* Research-site mechanism: registry-driven define-before-use (hover card 350 ms, click-to-jump,

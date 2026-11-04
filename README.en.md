@@ -10,11 +10,22 @@ English · [中文](README.md)
 
 [Player guide (zh-TW)](https://wizerdbache.github.io/nikke-k2f-check/) · [Quick start](#quick-start) · [Reading the verdict](#reading-the-verdict) · [Facts and sources](docs/FACTS.md) · [Developer doc](docs/DEVELOPER.md) · [For AI agents](AGENTS.md)
 
-![First screen of the player guide: chapter list on the left, the title and the first section, for Delta Force players, on the right (labels in Traditional Chinese)](docs/assets/hero.png)
+![First screen of the player guide: chapter list on the left, the title and the first section, the four steps of the one-file download, on the right (labels in Traditional Chinese)](docs/assets/hero.png)
 
 </div>
 
 *Image labels are in Traditional Chinese; the player guide is written for Traditional Chinese readers.*
+
+## Easiest: download one file and double-click it
+
+> **[⬇ Download nikke-k2f-check.cmd](https://github.com/WizerdBaChe/nikke-k2f-check/releases/latest/download/nikke-k2f-check.cmd)**, then double-click it. No unzipping, no terminal. (Its screen text is in Traditional Chinese.)
+
+1. If the browser says the file may be harmful, choose Keep.
+2. Double-click it in Downloads. On the blue "Windows protected your PC" screen, click More info → Run anyway.
+3. Read the result in the last lines (30 s to 1 min).
+4. If it finds traces it asks whether to clean up: **change passwords from your phone first**, then type `Y`, accept the administrator prompt, read the numbered summary it shows (launcher caches people often forget, such as `%APPDATA%\nikke_launcher_HMT\tbs_cache`, are listed too), and type `Y` again; afterwards it shows each item as done or failed. Files are moved to a quarantine folder, never deleted, so you can move them back.
+
+Check only: `nikke-k2f-check.cmd check`. The file carries this repo's three PowerShell scripts (base64, each with its SHA-256), writes them to %TEMP%, verifies them and runs them; **it downloads nothing**. Each release lists the file's SHA-256 on the [Releases](https://github.com/WizerdBaChe/nikke-k2f-check/releases) page.
 
 ## Delta Force players: read this first
 
@@ -43,12 +54,15 @@ From 2026-09-27, four JavaScript files on Level Infinite's CDN were tampered wit
 
 | Script | Does | Changes anything? |
 |---|---|---|
+| `nikke-k2f-check.cmd` (Releases) / `Run-Check.cmd` | Double-click: checks, offers cleanup only on a hit, lists the plan and asks again before acting | Only after two Y answers |
 | `Check-K2F.ps1` | Stage 1 (launcher) and stage 2 (Chrome persistence, other Chromium browsers too, plus renamed suspected variants) indicators for every user profile on the PC, agent timeline, "live components" vs "history only" | Read-only |
 | `Remediate-K2F.ps1` | Stops the launcher, removes the Chrome backdoor, quarantines the launcher cache, blocks domains and IPs | Dry-run by default; `-Apply` acts, moving everything to a quarantine folder (no deletes) |
 | `Sweep-Persistence.ps1` | For people who cannot reinstall: autostart points and unsigned files created inside the agent's real active windows | Read-only |
 | `Test-CdnFiles.ps1` | Compares the 4 CDN files' ETags with the known-clean ones before you reopen the launcher | HEAD requests only |
 
 ## Quick start
+
+Three ways, same result: the [one file](#easiest-download-one-file-and-double-click-it); the ZIP (**Code → Download ZIP**, extract, double-click `Run-Check.cmd`); or the terminal steps below.
 
 1. **Code → Download ZIP**, extract into Downloads.
 2. Right-click Start → Terminal, paste:

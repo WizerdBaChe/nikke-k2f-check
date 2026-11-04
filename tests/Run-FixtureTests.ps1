@@ -188,14 +188,22 @@ try {
   $edge = New-File "$($c.Other)\Microsoft\Edge\User Data\PlatformExperienceHelper\$hex\platform_experience_helper.dll" ('MZ' + ('x' * 100))
   $tbs = New-File "$($c.OtherRoaming)\nikke_launcher\tbs_cache\Local Storage\leveldb\000003.log" 'k2f.agent.state'
   $tmpf = New-File "$($c.Other)\Temp\k2f_screen_1.jpg"
+  # Hong Kong/Macau/Taiwan build: its cache folder is nikke_launcher_HMT
+  $hmt = New-File "$($c.Roaming)\nikke_launcher_HMT\tbs_cache\Local Storage\leveldb\000003.log" 'k2f.agent.state'
   $r = Invoke-Check $c
   Assert ($r.Report.Verdict -eq 'infected-live') 'R1 before: infected-live'
+  Assert (@($r.Findings | Where-Object { $_.Where -like '*nikke_launcher_HMT*' }).Count -ge 1) 'R1 Check reports the nikke_launcher_HMT cache'
   $o = Invoke-Remediate $c
-  Assert ((Test-Path $edge) -and (Test-Path $tbs) -and (Test-Path $tmpf)) 'R1 dry-run moves nothing'
+  Assert ((Test-Path $edge) -and (Test-Path $tbs) -and (Test-Path $tmpf) -and (Test-Path $hmt)) 'R1 dry-run moves nothing'
+  $m = [regex]::Match($o, '照這份清單會做 (\d+) 件事')
+  Assert ($m.Success -and [int]$m.Groups[1].Value -ge 4) "R1 dry-run summary counts the actions ($($m.Groups[1].Value))"
+  Assert ($o -match '(?m)^\s+\d+\. .*nikke_launcher_HMT\\tbs_cache') 'R1 dry-run summary lists the HMT cache as a numbered line'
   $o = Invoke-Remediate $c -Apply
   Assert (-not (Test-Path (Split-Path $edge)) -and -not (Test-Path (Split-Path $tbs -Parent | Split-Path | Split-Path)) -and -not (Test-Path $tmpf)) 'R1 apply: sources gone'
+  Assert ($o -match '成功 \d+ 件，失敗 0 件') 'R1 apply summary: 0 failed'
   $q = "$($c.Dir)\quarantine"
   Assert ((Test-Path "$q\peh\other-edge\$hex\platform_experience_helper.dll.quarantined") -and (Test-Path "$q\other-nikke_launcher-tbs_cache") -and (Test-Path "$q\temp\k2f_screen_1.jpg")) 'R1 apply: all three in quarantine'
+  Assert ((-not (Test-Path $hmt)) -and (Test-Path "$q\nikke_launcher_HMT-tbs_cache")) 'R1 apply: HMT cache moved to quarantine'
   $r = Invoke-Check $c
   Assert ($r.Report.Verdict -eq 'clean-known') 'R1 after: clean-known'
 
