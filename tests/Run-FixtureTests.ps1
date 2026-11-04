@@ -193,6 +193,19 @@ try {
   Assert ((Test-Path "$q\peh\other-edge\$hex\platform_experience_helper.dll.quarantined") -and (Test-Path "$q\other-nikke_launcher-tbs_cache") -and (Test-Path "$q\temp\k2f_screen_1.jpg")) 'R1 apply: all three in quarantine'
   $r = Invoke-Check $c
   Assert ($r.Report.Verdict -eq 'clean-known') 'R1 after: clean-known'
+
+  Write-Host "`n[R2] Remediate -Apply, Delta Force Garena layout: hit cache moved, clean cache kept, service log copied"
+  $c = New-Case 'r2'; Remove-Item -LiteralPath $c.Install -Recurse -Force
+  New-File "$(Split-Path $c.Install)\service\debug.log" $dfLog | Out-Null
+  $dfHit = New-File "$($c.Roaming)\df_garena_launcher\tbs_cache\Network Persistent State" '{"server":"https://insightjs.org"}'
+  $clean = New-File "$($c.Roaming)\other_app\tbs_cache\Network Persistent State" '{"server":"https://launcher.jupiterlauncher.com"}'
+  $o = Invoke-Remediate $c
+  Assert ((Test-Path $dfHit) -and (Test-Path $clean)) 'R2 dry-run moves nothing'
+  $o = Invoke-Remediate $c -Apply
+  $q = "$($c.Dir)\quarantine"
+  Assert ((-not (Test-Path $dfHit)) -and (Test-Path "$q\df_garena_launcher-tbs_cache\Network Persistent State")) 'R2 apply: df_garena_launcher cache with insightjs moved to quarantine'
+  Assert ((Test-Path $clean) -and -not (Test-Path "$q\other_app-tbs_cache")) 'R2 apply: cache without indicators left in place'
+  Assert (Test-Path "$q\launcher-logs\debug.log") 'R2 apply: service\debug.log copied as evidence'
 } finally {
   $env:APPDATA = $saved.APPDATA; $env:LOCALAPPDATA = $saved.LOCALAPPDATA; $env:TEMP = $saved.TEMP; $env:TMP = $saved.TMP
   if ($helper) { Stop-Process -Id $helper.Id -Force -ErrorAction SilentlyContinue }

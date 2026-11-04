@@ -9,7 +9,8 @@
     3. quarantine PlatformExperienceHelper\<64-hex> folders of Chrome and the other Chromium browsers,
        for every readable user profile (locked until reboot -> re-run after reboot)
     4. quarantine launcher web cache tbs_cache (holds tampered JS + agent state), TEMP k2f* files,
-       for every readable user profile, and copy the launcher logs as evidence
+       for every readable user profile, and copy the launcher logs as evidence. NIKKE caches always;
+       other launchers' caches (e.g. Delta Force Garena) only when they contain an insightjs / k2f indicator
     5. block insightjs domains + C2 IP in hosts / firewall (needs an elevated window)
   Run in YOUR OWN PowerShell window. Credential rotation is NOT something a script can do.
 .PARAMETER Apply
@@ -38,11 +39,23 @@ foreach ($u in Get-ChildItem -LiteralPath $UsersRoot -Directory -Force -ErrorAct
   $profiles += [pscustomobject]@{ Name = $u.Name; Roaming = (Join-Path $u.FullName 'AppData\Roaming'); Local = $loc; Temp = (Join-Path $loc 'Temp'); Current = $false }
 }
 
+# Launcher web-view data folders, same rule as Check-K2F.ps1: nikke_launcher* by name, or any folder holding a tbs_cache.
+$dataDirs = @($profiles | ForEach-Object {
+  Get-ChildItem -LiteralPath $_.Roaming -Directory -Force -ErrorAction SilentlyContinue | Where-Object { $_.Name -like 'nikke_launcher*' -or (Test-Path -LiteralPath (Join-Path $_.FullName 'tbs_cache')) }
+})
+# The launcher folder under a root: the root itself or root\launcher, holding intl_service (NIKKE) or service\debug.log (Delta Force Garena).
+function Resolve-LauncherDir([string]$r) {
+  if (-not $r) { return $null }
+  $r = $r.TrimEnd('\')
+  foreach ($c in $r, "$r\launcher") { if ((Test-Path "$c\intl_service") -or (Test-Path "$c\service\debug.log")) { return $c } }
+  return $null
+}
+
 # Find the install the same way Check-K2F.ps1 does when -InstallPath is not given.
 if (-not $InstallPath) {
   $cands = @()
   foreach ($k in 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*', 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*', 'HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*') {
-    Get-ItemProperty $k -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName -like '*NIKKE*' -and $_.InstallLocation } | ForEach-Object { $cands += $_.InstallLocation.TrimEnd('\') }
+    Get-ItemProperty $k -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName -match 'NIKKE|Delta Force' -and $_.InstallLocation } | ForEach-Object { $cands += $_.InstallLocation.TrimEnd('\') }
   }
   # Launcher URL protocol icon and url_protocol.reg, as in Check-K2F.ps1.
   $exeRx = '[A-Za-z]:\\[^"\r\n]*?\\nikke_launcher[^"\\\r\n]*\.exe'
@@ -50,18 +63,18 @@ if (-not $InstallPath) {
     $v = [string](Get-ItemProperty "HKCU:\Software\Classes\$p\DefaultIcon" -ErrorAction SilentlyContinue).'(default)'
     if ($v -match $exeRx) { $cands += (Split-Path $matches[0] -Parent) }
   }
-  foreach ($pf in $profiles) {
-    foreach ($A in Get-ChildItem -LiteralPath $pf.Roaming -Directory -Force -Filter 'nikke_launcher*' -ErrorAction SilentlyContinue) {
-      $t = Get-Content -LiteralPath (Join-Path $A.FullName 'url_protocol.reg') -Raw -ErrorAction SilentlyContinue
-      if ($t) { foreach ($m in [regex]::Matches(($t -replace '\\\\', '\'), $exeRx)) { $cands += (Split-Path $m.Value -Parent) } }
+  $regExeRx = '[A-Za-z]:\\[^"\r\n]*?\\[^"\\\r\n]*launcher[^"\\\r\n]*\.exe'
+  foreach ($A in $dataDirs) {
+    foreach ($rf in (Join-Path $A.FullName 'url_protocol.reg'), "$($A.FullName).reg") {
+      $t = Get-Content -LiteralPath $rf -Raw -ErrorAction SilentlyContinue
+      if ($t) { foreach ($m in [regex]::Matches(($t -replace '\\\\', '\'), $regExeRx)) { $cands += (Split-Path $m.Value -Parent) } }
     }
   }
-  $hasLauncher = { param($c) (Test-Path "$c\intl_service") -or (Test-Path "$c\launcher\intl_service") }
-  if (-not @($cands | Where-Object { & $hasLauncher $_ })) {
-    foreach ($d in (Get-PSDrive -PSProvider FileSystem).Root) { foreach ($g in "$d*NIKKE*", "$d*\*NIKKE*", "$d*\*\*NIKKE*") { Get-Item $g -Force -ErrorAction SilentlyContinue | Where-Object PSIsContainer | ForEach-Object { $cands += $_.FullName } } }
+  if (-not @($cands | Where-Object { Resolve-LauncherDir $_ })) {
+    foreach ($d in (Get-PSDrive -PSProvider FileSystem).Root) { foreach ($g in "$d*NIKKE*", "$d*\*NIKKE*", "$d*\*\*NIKKE*", "$d*Delta Force*", "$d*\*Delta Force*", "$d*\*\*Delta Force*") { Get-Item $g -Force -ErrorAction SilentlyContinue | Where-Object PSIsContainer | ForEach-Object { $cands += $_.FullName } } }
   }
-  $InstallPath = $cands | Where-Object { & $hasLauncher $_ } | Select-Object -First 1
-  if (-not $InstallPath) { Write-Host '找不到 NIKKE 安裝資料夾，請用 -InstallPath 指定（例：-InstallPath D:\NIKKE）。啟動器紀錄的證據備份會略過。' -ForegroundColor Yellow; $InstallPath = '' }
+  $InstallPath = $cands | Where-Object { Resolve-LauncherDir $_ } | Select-Object -First 1
+  if (-not $InstallPath) { Write-Host '找不到啟動器安裝資料夾，請用 -InstallPath 指定（例：-InstallPath D:\NIKKE）。啟動器紀錄的證據備份會略過。' -ForegroundColor Yellow; $InstallPath = '' }
 }
 
 $ErrorActionPreference = 'Continue'
@@ -80,16 +93,16 @@ function Ensure-Dir([string]$p) { if (-not (Test-Path $p)) { New-Item -ItemType 
 if (-not $Apply) { Write-Host '試跑模式 (dry-run)：只列出會做的事。確認後加 -Apply 再跑一次。' -ForegroundColor Yellow }
 Write-Host "隔離區：$Quarantine"
 
-$L = if (-not $InstallPath) { '' } elseif (Test-Path "$InstallPath\launcher\intl_service") { "$InstallPath\launcher" } else { $InstallPath.TrimEnd('\') }
+$L = if (-not $InstallPath) { '' } elseif (Resolve-LauncherDir $InstallPath) { Resolve-LauncherDir $InstallPath } else { $InstallPath.TrimEnd('\') }
 
 # 1. processes
-Step '1. 結束 NIKKE 啟動器程序'
+Step '1. 結束啟動器程序'
 $procs = @()
 # Never match on an empty or drive-root prefix: StartsWith('') is true for every process.
 if ($L -and $L.Length -gt 3) {
   $procs += @(Get-Process -ErrorAction SilentlyContinue | Where-Object { $_.Path -and $_.Path.StartsWith($L + '\', [StringComparison]::OrdinalIgnoreCase) })
 }
-$procs += @(Get-Process -Name tbs_browser, INTLWebViewHelper, intl_service, nikke_launcher, nikke_launcher_hmt -ErrorAction SilentlyContinue)
+$procs += @(Get-Process -Name tbs_browser, INTLWebViewHelper, intl_service, nikke_launcher, nikke_launcher_hmt, df_garena_launcher -ErrorAction SilentlyContinue)
 $procs = $procs | Sort-Object Id -Unique
 if ($procs) { foreach ($p in $procs) { Do-It "停止 $($p.Name) (PID $($p.Id))" { Stop-Process -Id $p.Id -Force } } } else { Write-Host '  沒有執行中的啟動器程序' }
 
@@ -144,19 +157,32 @@ if ($bad) {
 
 # 4. launcher cache, logs, temp
 Step '4. 隔離啟動器快取與暫存檔，保留紀錄當證據'
+# NIKKE caches are always moved (they held the tampered JS). Other launchers' caches are moved only when they
+# carry an indicator, since no public sample shows K2F there (docs/FACTS.md, other games).
+$cacheNeedles = 'insightjs', 'k2f.agent.state'
+function Test-CacheHit([string]$dir) {
+  foreach ($f in Get-ChildItem -LiteralPath $dir -Recurse -File -Force -ErrorAction SilentlyContinue | Where-Object { $_.Length -le 64MB }) {
+    try { $s = [Text.Encoding]::GetEncoding(28591).GetString([IO.File]::ReadAllBytes($f.FullName)) } catch { continue }
+    foreach ($n in $cacheNeedles) {
+      $wide = ($n.ToCharArray() | ForEach-Object { "$_`0" }) -join ''
+      if ($s.IndexOf($n, [StringComparison]::Ordinal) -ge 0 -or $s.IndexOf($wide, [StringComparison]::Ordinal) -ge 0) { return $true }
+    }
+  }
+  return $false
+}
 foreach ($pf in $profiles) {
-  foreach ($A in Get-ChildItem -LiteralPath $pf.Roaming -Directory -Force -Filter 'nikke_launcher*' -ErrorAction SilentlyContinue) {
+  foreach ($A in @($dataDirs | Where-Object { $_.FullName.StartsWith($pf.Roaming.TrimEnd('\') + '\', [StringComparison]::OrdinalIgnoreCase) })) {
     $tbs = Join-Path $A.FullName 'tbs_cache'
-    if (Test-Path -LiteralPath $tbs) {
-      $name = if ($pf.Current) { $A.Name } else { "$($pf.Name)-$($A.Name)" }
-      Do-It "移動 $tbs 到隔離區（啟動器下次開會重建）" {
-        $dst = Join-Path $Quarantine "$name-tbs_cache"; Ensure-Dir $Quarantine
-        Move-Item -LiteralPath $tbs -Destination $dst -Force -ErrorAction Stop
-      }
+    if (-not (Test-Path -LiteralPath $tbs)) { continue }
+    if ($A.Name -notlike 'nikke_launcher*' -and -not (Test-CacheHit $tbs)) { Write-Host "  $tbs 沒有木馬痕跡，不動" -ForegroundColor DarkGray; continue }
+    $name = if ($pf.Current) { $A.Name } else { "$($pf.Name)-$($A.Name)" }
+    Do-It "移動 $tbs 到隔離區（啟動器下次開會重建）" {
+      $dst = Join-Path $Quarantine "$name-tbs_cache"; Ensure-Dir $Quarantine
+      Move-Item -LiteralPath $tbs -Destination $dst -Force -ErrorAction Stop
     }
   }
 }
-foreach ($src in "$L\intl_service\debug.log", "$L\log\tinyget") {
+foreach ($src in "$L\intl_service\debug.log", "$L\service\debug.log", "$L\log\tinyget") {
   if ($L -and (Test-Path $src)) { Do-It "複製 $src 到隔離區（原檔保留）" { $dst = Join-Path $Quarantine 'launcher-logs'; Ensure-Dir $dst; Copy-Item -LiteralPath $src -Destination $dst -Recurse -Force -ErrorAction Stop } }
 }
 $tmp = @($profiles | ForEach-Object { $_.Temp } | Sort-Object -Unique | ForEach-Object { Get-ChildItem -LiteralPath $_ -Force -ErrorAction SilentlyContinue } | Where-Object { $_.Name -like 'k2f-bcreds*' -or $_.Name -like 'k2f_screen*' -or $_.Name -like 'k2f*.lua' })

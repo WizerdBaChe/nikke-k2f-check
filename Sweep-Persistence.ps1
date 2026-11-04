@@ -11,7 +11,7 @@
 .PARAMETER Since
   Start of the review window. Default 2026-09-27 (first CDN tampering).
 .PARAMETER InstallPath
-  NIKKE install root; used only to read agent start times from debug.log.
+  Launcher install root (NIKKE or Delta Force Garena); used only to read agent start times from debug.log.
 .PARAMETER WindowHours
   How long after each agent start counts as "active window". Default 8.
 #>
@@ -54,7 +54,8 @@ function Get-ExePath([string]$cmd) {
 # ---------- active windows from debug.log ----------
 $windows = @()
 if ($InstallPath) {
-  $dbg = Get-ChildItem $InstallPath -Recurse -Force -Filter debug.log | Where-Object { $_.DirectoryName -match 'intl_service' } | Select-Object -First 1
+  # intl_service (NIKKE) or service (Delta Force Garena), as in Check-K2F.ps1.
+  $dbg = Get-ChildItem $InstallPath -Recurse -Force -Filter debug.log | Where-Object { $_.DirectoryName -match '\\(intl_service|service)$' } | Select-Object -First 1
   if ($dbg) {
     # The agent lives inside the launcher's web view, so it is active only while the launcher runs.
     # Window = agent start .. last debug.log line of that launcher session (gap > 1 h ends a session),
