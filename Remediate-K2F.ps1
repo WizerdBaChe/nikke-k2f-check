@@ -84,11 +84,21 @@ $pending = New-Object System.Collections.ArrayList
 $plan = New-Object System.Collections.ArrayList
 
 function Step([string]$Msg) { Write-Host ''; Write-Host "== $Msg" -ForegroundColor Cyan }
+# $script:LastOk tells the caller whether the last Do-It succeeded ($true in dry-run).
 function Do-It([string]$Desc, [scriptblock]$Action) {
   if ($Apply) {
-    try { & $Action; Write-Host "  [done] $Desc" -ForegroundColor Green; [void]$plan.Add([pscustomobject]@{ Desc = $Desc; Ok = $true }) }
-    catch { Write-Host "  [fail] $Desc -- $($_.Exception.Message)" -ForegroundColor Red; [void]$pending.Add($Desc); [void]$plan.Add([pscustomobject]@{ Desc = $Desc; Ok = $false }) }
-  } else { Write-Host "  [would] $Desc" -ForegroundColor Yellow; [void]$plan.Add([pscustomobject]@{ Desc = $Desc; Ok = $null }) }
+    try { & $Action; $script:LastOk = $true; Write-Host "  [done] $Desc" -ForegroundColor Green; [void]$plan.Add([pscustomobject]@{ Desc = $Desc; Ok = $true }) }
+    catch { $script:LastOk = $false; Write-Host "  [fail] $Desc -- $($_.Exception.Message)" -ForegroundColor Red; [void]$pending.Add($Desc); [void]$plan.Add([pscustomobject]@{ Desc = $Desc; Ok = $false }) }
+  } else { $script:LastOk = $true; Write-Host "  [would] $Desc" -ForegroundColor Yellow; [void]$plan.Add([pscustomobject]@{ Desc = $Desc; Ok = $null }) }
+}
+# A registry key is deleted only after its .reg backup was written; otherwise it stays and the run reports it.
+function Remove-KeyAfterExport([string]$Key, [string]$PsPath) {
+  if (-not $script:LastOk) {
+    $d = "略過刪除 $Key（備份 .reg 失敗，登錄項保留不動）"
+    Write-Host "  [skip] $d" -ForegroundColor Red; [void]$pending.Add($d); [void]$plan.Add([pscustomobject]@{ Desc = $d; Ok = $false })
+    return
+  }
+  Do-It "刪除登錄項 $Key" { Remove-Item $PsPath -Recurse -Force -ErrorAction Stop }
 }
 function Ensure-Dir([string]$p) { if (-not (Test-Path $p)) { New-Item -ItemType Directory -Path $p -Force | Out-Null } }
 
@@ -118,7 +128,7 @@ foreach ($view in 'CLSID', 'WOW6432Node\CLSID') {   # 64-bit and 32-bit registry
   $foundKey = $true
   $regFile = Join-Path $Quarantine ('hkcu-' + ($view -replace '\\', '-').ToLower() + '.reg')
   Do-It "匯出 $key 到隔離區" { Ensure-Dir $Quarantine; & reg.exe export $key $regFile /y | Out-Null; if ($LASTEXITCODE) { throw "reg export exit $LASTEXITCODE" } }
-  Do-It "刪除登錄項 $key（HKLM 同名項是 Windows 正常的，不動）" { Remove-Item "HKCU:\Software\Classes\$view\$clsid" -Recurse -Force -ErrorAction Stop }
+  Remove-KeyAfterExport "$key（HKLM 同名項是 Windows 正常的，不動）" "HKCU:\Software\Classes\$view\$clsid"
 }
 # Generic variant: other HKCU CLSIDs whose in-process server sits where the known dll sits.
 # Same logic in Check-K2F.ps1 (Get-SuspectComServer); change both together.
@@ -146,7 +156,7 @@ foreach ($view in 'CLSID', 'WOW6432Node\CLSID') {
     $key = "HKCU\Software\Classes\$view\$($k.PSChildName)"
     $regFile = Join-Path $Quarantine ('hkcu-' + ($view -replace '\\', '-').ToLower() + '-' + $k.PSChildName.Trim('{}') + '.reg')
     Do-It "匯出疑似變種 $key（dll 在$why）到隔離區" { Ensure-Dir $Quarantine; & reg.exe export $key $regFile /y | Out-Null; if ($LASTEXITCODE) { throw "reg export exit $LASTEXITCODE" } }
-    Do-It "刪除登錄項 $key" { Remove-Item "HKCU:\Software\Classes\$view\$($k.PSChildName)" -Recurse -Force -ErrorAction Stop }
+    Remove-KeyAfterExport $key "HKCU:\Software\Classes\$view\$($k.PSChildName)"
     # Step 3 moves only platform_experience_helper.dll* inside PlatformExperienceHelper\<64-hex>; any other target is moved here.
     $dll = [Environment]::ExpandEnvironmentVariables($v.Trim('"'))
     if ((Test-Path -LiteralPath $dll -PathType Leaf) -and $dll -notmatch '\\PlatformExperienceHelper\\[0-9a-fA-F]{64}\\platform_experience_helper\.dll[^\\]*$') {
