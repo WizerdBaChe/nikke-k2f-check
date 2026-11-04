@@ -33,7 +33,7 @@ flowchart LR
     DL[launcher/intl_service/debug.log]
     TG[launcher/log/tinyget/*.log]
     LS[AppData/Roaming/nikke_launcher*/tbs_cache]
-    HK[HKCU CLSID E77CC89B]
+    HK[HKCU CLSID E77CC89B + any CLSID pointing into User Data]
     PEH[Chrome PlatformExperienceHelper/64-hex]
     TMP[TEMP k2f*]
   end
@@ -106,11 +106,23 @@ flowchart LR
 | 新增的 R2（處理）對改版前的 `Remediate-K2F.ps1` | 4 項中 2 項失敗：三角洲快取沒被隔離、`service\debug.log` 沒備份 |
 | 作者電腦上真的三角洲 Garena 版（2026-08 安裝，最後開啟 09-09） | 不加 `-InstallPath` 也找得到 `D:\game\Delta Force\launcher`；clean-known，exit 0；`Remediate` 試跑判定它的快取「沒有木馬痕跡，不動」 |
 
+2026-11-04 加入「疑似變種的 COM 劫持」通用檢查之後（規則見 FACTS 第 2 階段，來源 X）：
+
+| 檢查 | 結果 |
+|---|---|
+| `tests/Run-FixtureTests.ps1` 對新版 | 48 項全過 |
+| 新增的 P9/N9/R3 對改版前的 `main` | 11 項中 6 項失敗：兩個疑似變種的機碼都沒被報（新版報 RED），處理工具沒匯出、沒刪、沒隔離。通過的 5 項是負向案例、試跑不動，以及「算作仍在」（舊版靠 Chrome 資料夾那條規則也會報） |
+| 新版在作者電腦上重跑 | HKCU 兩個登錄視圖共 4,532 個 CLSID 機碼，沒有誤報；clean-known，exit 0；約 20 秒 |
+
+規則細節：檔案在 `PlatformExperienceHelper\<64 碼>` 資料夾就算中毒；只在 `\User Data\` 底下的，檔案沒有有效數位簽章（或檔案已不在）才算，有效簽章的一律不報（N9b 用微軟簽章的 dll 驗證）。處理時先匯出 `.reg` 再刪機碼；dll 若不是第 3 步會處理的 `platform_experience_helper.dll*`，就在第 2 步直接搬到 `com-dll\`（開發途中 R3 抓到「換了檔名的 dll 兩步都不處理」，已修）。`Check-K2F.ps1` 與 `Remediate-K2F.ps1` 各有一份 `Get-SuspectComServer`，內容相同，靠 P9/R3 同一組機碼一起測住。
+
+第 2 階段的實機證據：本 repo 仍然沒有。外部有一份：X 在一台真的有第 2 階段的電腦上觀察到的行為（見 FACTS）。我們的檢查方向（查 HKCU、查所有程序、不只 chrome.exe）和它一致，但我們的測試仍是人工樣本。
+
 測試屬於範例測試（每個檢查一個正向、一個負向情境），不是對所有輸入的證明。32 位元登錄的案例是在 Claude 桌面 App 的終端機裡跑的，那裡的 HKCU 是 App 自己的虛擬化視圖，所以只證明腳本邏輯，沒碰到真正的使用者登錄。
 
 開發途中測試抓到一個回歸：`Get-ChildItem -LiteralPath ... -Include` 在 PowerShell 5.1 會忽略 `-Include`，把 Chrome 整個 Application 資料夾都報成殘留檔；已改回 `-Path`，負向案例 N0 就是防這個。
 
-沒驗證過：國際版與日版的安裝資料夾結構、三角洲 Steam 版與國際版、其他 Level Infinite 遊戲的啟動器、三角洲上的正向對照（沒有中毒的三角洲樣本）、Proton/Linux、第 2 階段在真實中毒機上的正向對照（實測機沒有第 2 階段痕跡）、防火牆規則重建（需要系統管理員）、`Sweep-Persistence.ps1` 離線掃描建議的 BitLocker 與「Defender 非主要防毒」分支（實測機只走到一般分支）。
+沒驗證過：國際版與日版的安裝資料夾結構、三角洲 Steam 版與國際版、其他 Level Infinite 遊戲的啟動器、三角洲上的正向對照（沒有中毒的三角洲樣本）、Proton/Linux、第 2 階段在真實中毒機上的正向對照（實測機沒有第 2 階段痕跡；外部證據見上一段）、疑似變種規則的真實案例（目前沒有任何人見過）、其他使用者帳號的 HKCU（要該帳號登入再跑）、防火牆規則重建（需要系統管理員）、`Sweep-Persistence.ps1` 離線掃描建議的 BitLocker 與「Defender 非主要防毒」分支（實測機只走到一般分支）。
 
 跑測試（會在 `%TEMP%` 建假資料夾，結束後刪掉；會暫時建立一個 HKCU 登錄項並在結束時移除）：
 

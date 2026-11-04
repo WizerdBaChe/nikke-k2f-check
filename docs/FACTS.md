@@ -14,6 +14,7 @@ README、說明頁、`docs/DEVELOPER.md` 與四支腳本用到的痕跡、時間
 - **M3** = 本 repo 作者在自己電腦上對《鳴潮》官方啟動器版與 Steam 版的唯讀檢查（2026-11-04）
 - **GM** = Gamemeca 報導 <https://www.gamemeca.com/en/view.php?gid=1782921>（2026-11-04，含 Level Infinite 公告與 Krafton 回應）
 - **S** = PUBG: BATTLEGROUNDS 的 Steam 商店頁 <https://store.steampowered.com/app/578080/>（2026-11-04 讀取）
+- **X** = whykusanagi 的分析與檢查工具 <https://github.com/whykusanagi/nikke_malware>（`docs/ATTACK_CHAIN.md`、`docs/IOCS.md`、`CHANGELOG.md`，2026-11-04 讀取）。作者分析了一台真的有第 2 階段的受害電腦，每項結論自己標 [obs]（在那台電腦上觀察到）、[ext]（引用別人）或 [inf]（推論）；下面引用 X 時照抄它的標記
 - **D** = 防毒誤報的網路回報：<https://itch.io/post/14240566>、<https://forum.squareline.io/t/microsoft-defender-claims-trojan-script-wacatac-b-ml-on-installation-file/2681>（使用者回報，非微軟官方文件）
 
 ## 時間線
@@ -52,6 +53,8 @@ M：2026-11-04 15:00 前後從台灣連線，4 個檔案都回傳乾淨 ETag。
 | `lua downloaded to log\tinyget\...` | 同上 | 下載過木馬 | G |
 | `insight.bundle` | `launcher\log\tinyget\*.log` | 中毒 | G, B |
 | `k2f*.lua`、或開頭為 LuaJIT 位元組 `1B 4C 4A 01` 的檔案 | `launcher\log\tinyget\` | 中毒 | G |
+
+紀錄不見不等於乾淨：木馬有 `payload_cleanup` 指令，可以刪掉啟動器的 TinyGet 下載紀錄 — X（第一發現者的證詞，不是鑑識結果）。
 | `k2f.agent.state`（含 agent_id、c2s_counter） | `%APPDATA%\nikke_launcher*\tbs_cache\Local Storage\leveldb\*.log` | 中毒；刪遊戲也不會消失 | G, B |
 | `insightjs` | `%APPDATA%\nikke_launcher*\tbs_cache\Code Cache\` | 有接觸 | B |
 | 啟動器存的登入資料 `psd.dat`、`last_user.dat` | `%APPDATA%\nikke_launcher*\` | 木馬 creds 指令會讀 | G |
@@ -65,7 +68,11 @@ M：HSTS 雜湊是 Chromium 的算法：主機名稱轉成 DNS 線路格式（�
 
 ## 第 2 階段痕跡（Chrome 常駐）
 
-- 登錄檔：`HKCU\Software\Classes\CLSID\{E77CC89B-7401-4C04-8CED-149DB35ADD04}\InprocServer32`。只有 HKCU 底下的是惡意；HKLM 同名項是 Windows 的 `wpc.dll` — G, B, H
+- 登錄檔：`HKCU\Software\Classes\CLSID\{E77CC89B-7401-4C04-8CED-149DB35ADD04}\InprocServer32`。只有 HKCU 底下的是惡意；HKLM 同名項（有的話）是 Windows 的 `wpc.dll`。HKLM 那筆不一定存在：X 分析的 Windows 11 Pro 上就沒有 [obs]，G 也在 2026-11-04 把「每台都有」改成「大多數有」。所以不能拿 HKLM 當對照，只看 HKCU — G, B, H, X
+- 這個 CLSID 是 Windows 家長監護元件；Chromium 系的程式啟動時都會建立它，所以 HKCU 那筆一出現，dll 就會被載入 — X [obs/ext]
+- 沒裝 Chrome 也會被種：木馬不檢查 Chrome 在不在，照樣寫入登錄和資料夾 — G
+- 資料夾名稱就是 dll 自己的 SHA-256 — X [obs]
+- 疑似變種的通用規則：任何 HKCU 的 CLSID，`InprocServer32` 指向 `\User Data\` 或 `PlatformExperienceHelper\<64 碼>` 底下 — X（推論規則，還沒見過實例）。腳本的做法：64 碼資料夾一律算中毒；`\User Data\` 底下的只在檔案沒有有效數位簽章時才算，避免誤報正常軟體。hamzzi v4.5 也有同一條規則，但不看簽章
 - 檔案：`%LOCALAPPDATA%\Google\Chrome\User Data\PlatformExperienceHelper\<64 碼十六進位>\platform_experience_helper.dll`；每台受害者各自編譯，雜湊不是共通指標 — G, B, H
 - 殘留：Chrome Application 資料夾下的 `platform_experience_helper.dll.old`、`old-clsid.txt`、`service_util.dll` — G
 - 移除順序：先刪 HKCU 登錄項 → 重開機 → 只刪 64 碼子資料夾，不刪整個 PlatformExperienceHelper — G, B, H
@@ -75,8 +82,11 @@ M：HSTS 雜湊是 Chromium 的算法：主機名稱轉成 DNS 線路格式（�
 - 開機時唯一會自己啟動的是這個 dll 加那個 HKCU 登錄項；這是木馬唯一的 Chrome 常駐方式 — G
 - 它是怎麼裝上去的：木馬本體的 `chrome_install` 指令接收攻擊者傳來的 dll（base64）寫進去；`chrome_scan`、`chrome_cleanup`、`chrome_uninstall` 負責查看與移除。不是每台中毒的電腦都有：有些受害者完全找不到 dll 與登錄項，代表攻擊者沒對那台下這個指令 — W, G
 - 錢包：dll 裡寫死 28 個錢包擴充功能的 ID（MetaMask、Phantom、OKX、Coinbase、Trust 等），並在擴充功能自己的 service worker 裡設中斷點來下手 — W。這代表它鎖定的是「錢包解鎖時的資料」，不只是硬碟上的加密檔案 — 推論
-- 「會讀網頁上輸入的密碼和錢包助記詞」：受害者回報，G 標為 reported，沒有程式碼分析佐證 — G（未證實）
-- 載入 dll 的程序：G、B 寫 chrome.exe；腳本改成查所有程序（K 的做法），因為 COM 劫持會被任何建立那個 COM 類別的程式載入 — K（推論）
+- 錢包助記詞：dll 在瀏覽器裡驅動開發者工具 (DevTools)，注入 JS 改寫 `JSON.parse`／`JSON.stringify`，用正規表示式找 12–24 個英文字的助記詞再回傳 — X [obs]。它在瀏覽器「裡面」讀資料，看到的是解密後的狀態，所以 App-Bound 加密擋不住 — X [obs/inf]
+- 「會讀網頁上輸入的密碼」：仍然只有受害者回報，沒有程式碼分析佐證 — G（未證實）
+- 載入 dll 的程序：G、B 寫 chrome.exe；X 在受害電腦上看到它住在 ChatGPT、EA Desktop、NVIDIA Overlay、Spotify、Steam 的輔助程序裡，砍掉後幾秒內又載回去 [obs]。所以腳本查所有程序，不只 chrome.exe；清除時要先刪登錄、再重開機 — X, K
+- 症狀：英雄聯盟卡在 logo 畫面，是 Vanguard 擋下這支沒有簽章的 dll — X（受害者回報）
+- 防毒：至少一台 Defender 離線掃描沒抓到這支 dll；也還沒有任何防毒廠商公布偵測名稱。防毒掃乾淨不能當作沒中 — G（留言）
 
 ## 暫存痕跡
 
@@ -125,3 +135,4 @@ M：HSTS 雜湊是 Chromium 的算法：主機名稱轉成 DNS 線路格式（�
 - 沒在清單裡出現：瀏覽紀錄、自動填入的地址、信用卡卡號，W 的讀取清單沒列這幾項。但木馬能讀任意檔案，所以這不代表它們安全 — W；推論
 
 全部清單：瀏覽器密碼與 Session Cookie（Chrome、Edge、Brave、Firefox 等）、NIKKE 帳密（啟動器儲存的）、SSH/GPG/age 金鑰、Git 憑證、環境變數、AI 工具與 MCP 設定及 API 金鑰（Claude Code、Gemini CLI、Cursor 等約 1,790 個路徑）、雲端/CI/套件庫權杖、28 種錢包擴充功能、螢幕截圖；可執行任意 shell 指令（19 種指令，含 `exec`）— G, W, H
+- 補充：Windows 認證管理員 (Credential Manager) 裡存的登入（Wi-Fi、遠端桌面、網路磁碟）也會被讀；Firefox 的密碼檔在啟動器開著時會被整份複製走（dll 只進 Chromium 系程式，但第 1 階段照樣拿得到 Firefox 的東西）— X

@@ -43,7 +43,7 @@ From 2026-09-27, four JavaScript files on Level Infinite's CDN were tampered wit
 
 | Script | Does | Changes anything? |
 |---|---|---|
-| `Check-K2F.ps1` | Stage 1 (launcher) and stage 2 (Chrome persistence, other Chromium browsers too) indicators for every user profile on the PC, agent timeline, "live components" vs "history only" | Read-only |
+| `Check-K2F.ps1` | Stage 1 (launcher) and stage 2 (Chrome persistence, other Chromium browsers too, plus renamed suspected variants) indicators for every user profile on the PC, agent timeline, "live components" vs "history only" | Read-only |
 | `Remediate-K2F.ps1` | Stops the launcher, removes the Chrome backdoor, quarantines the launcher cache, blocks domains and IPs | Dry-run by default; `-Apply` acts, moving everything to a quarantine folder (no deletes) |
 | `Sweep-Persistence.ps1` | For people who cannot reinstall: autostart points and unsigned files created inside the agent's real active windows | Read-only |
 | `Test-CdnFiles.ps1` | Compares the 4 CDN files' ETags with the known-clean ones before you reopen the launcher | HEAD requests only |
@@ -98,7 +98,9 @@ flowchart TD
 | 有接觸，未見木馬啟動 (contact) | The launcher loaded the attacker's script; no agent start seen |
 | 沒發現已知痕跡 (none known) | No known indicator; not a guarantee |
 
-**What does stage 2 (the browser) take?** It is not a separate browser stealer: it is the same remote-access trojan moved into Chrome, so it starts again every time Chrome opens, even after the game is closed or uninstalled, and can do everything it did inside the launcher. On the browser side it reads saved passwords, cookies (live logins that work without the password or 2FA), the decryption key (Chrome's App-Bound Encryption included) and the data of 28 crypto-wallet extensions. Besides changing passwords, sign out of all devices on each site so the stolen logins stop working. Sources: [docs/FACTS.md](docs/FACTS.md#木馬會偷的東西).
+**What does stage 2 (the browser) take?** It is not a separate browser stealer: it is the same remote-access trojan moved into Chrome, so it starts again every time Chrome opens, even after the game is closed or uninstalled, and can do everything it did inside the launcher. On the browser side it reads saved passwords, cookies (live logins that work without the password or 2FA), the decryption key (Chrome's App-Bound Encryption included) and the data of 28 crypto-wallet extensions. Besides changing passwords, sign out of all devices on each site so the stolen logins stop working.
+
+It does not live only in Chrome either: an analysis of a real victim PC found it inside Steam, Spotify, ChatGPT, EA and NVIDIA apps, which embed a browser engine; it is planted even when Chrome is not installed; and it looks for wallet seed phrases on web pages. A clean antivirus scan is not clearance (Defender's offline scan missed it on at least one PC); go by the checker's stage-2 result. Sources: [docs/FACTS.md](docs/FACTS.md#木馬會偷的東西).
 
 ## Differences from the popular one-liner
 
