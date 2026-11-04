@@ -138,7 +138,8 @@ function Get-SuspectComServer([string]$Path) {
 foreach ($view in 'CLSID', 'WOW6432Node\CLSID') {
   foreach ($k in Get-ChildItem "HKCU:\Software\Classes\$view" -Force) {
     if ($k.PSChildName -ieq $clsid) { continue }
-    $v = [string](Get-ItemProperty (Join-Path $k.PSPath 'InprocServer32')).'(default)'
+    # Most CLSIDs have no InprocServer32 subkey (LocalServer32/ProgID only); that is normal, not an error.
+    $v = [string](Get-ItemProperty (Join-Path $k.PSPath 'InprocServer32') -ErrorAction SilentlyContinue).'(default)'
     $why = Get-SuspectComServer $v
     if (-not $why) { continue }
     $foundKey = $true
