@@ -267,7 +267,7 @@ $blocked = $hostsMissing.Count -eq 0
 # Firewall: a rule counts only if it is enabled, outbound, block, and covers both C2 IPs.
 $fwIps = '89.127.233.127', '89.126.250.172'
 $fwBlocked = $false
-foreach ($r in @(Get-NetFirewallRule -DisplayName 'Block K2F C2', 'NIKKE k2f block')) {
+foreach ($r in @(Get-NetFirewallRule -DisplayName 'Block K2F C2', 'NIKKE k2f block' -ErrorAction SilentlyContinue)) {
   if ("$($r.Enabled)" -ne 'True' -or "$($r.Direction)" -ne 'Outbound' -or "$($r.Action)" -ne 'Block') { continue }
   $addr = @(($r | Get-NetFirewallAddressFilter).RemoteAddress)
   if (@($fwIps | Where-Object { $addr -notcontains $_ }).Count -eq 0) { $fwBlocked = $true }
