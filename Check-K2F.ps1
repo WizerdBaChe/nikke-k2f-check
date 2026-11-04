@@ -201,8 +201,14 @@ Write-Host ''
 Write-Host ("hosts 封鎖 insightjs：{0}" -f $(if ($blocked) { '已封鎖' } else { '未封鎖' }))
 Write-Host ("Defender 偵測紀錄：{0} 筆" -f $def.Count)
 Write-Host ''
-if ($red) {
-  Write-Host '【結果：中毒】先用手機改密碼（見 README），再跑 Remediate-K2F.ps1。' -ForegroundColor Red
+# Launcher logs are history: they stay after remediation (kept as evidence). Everything else is a live component.
+$histRx = '\\intl_service\\debug\.log$|\\log\\tinyget\\'
+$redLive = @($red | Where-Object { $_.Where -notmatch $histRx })
+if ($redLive) {
+  Write-Host '【結果：中毒，木馬元件仍在】先用手機改密碼（見 README），再跑 Remediate-K2F.ps1。' -ForegroundColor Red
+} elseif ($red) {
+  Write-Host '【結果：曾經中毒，目前只剩歷史紀錄】已知的木馬元件都不在了；但被偷的憑證仍有效，換密碼與金鑰才是重點。' -ForegroundColor Red
+  Write-Host '  沒辦法重灌的話，再跑 Sweep-Persistence.ps1 找有沒有被另外放進來的東西。' -ForegroundColor Red
 } elseif ($yel) {
   Write-Host '【結果：有接觸，未見木馬啟動】建議改 NIKKE 與重要帳號密碼，並清啟動器快取。' -ForegroundColor Yellow
 } elseif ($launchers) {
@@ -214,10 +220,10 @@ if (-not ($findings | Where-Object Stage -eq '2')) {
 
 if ($ReportPath) {
   [pscustomobject]@{
-    GeneratedAt = (Get-Date).ToString('s'); Verdict = $(if ($red) { 'infected' } elseif ($yel) { 'contact' } else { 'clean-known' })
+    GeneratedAt = (Get-Date).ToString('s'); Verdict = $(if ($redLive) { 'infected-live' } elseif ($red) { 'infected-history' } elseif ($yel) { 'contact' } else { 'clean-known' })
     Launchers = $launchers; Findings = $findings; Timeline = $tl
     Agent = $agentInfo; HostsBlocked = $blocked; DefenderDetections = $def.Count; Checked = $checked
   } | ConvertTo-Json -Depth 5 | Out-File -LiteralPath $ReportPath -Encoding utf8
   Write-Host "報告已寫入：$ReportPath"
 }
-if ($red) { exit 2 } elseif ($yel) { exit 1 } else { exit 0 }
+if ($redLive) { exit 3 } elseif ($red) { exit 2 } elseif ($yel) { exit 1 } else { exit 0 }

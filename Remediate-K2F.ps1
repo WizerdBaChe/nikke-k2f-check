@@ -19,9 +19,22 @@
 [CmdletBinding()]
 param(
   [switch]$Apply,
-  [string]$InstallPath = 'D:\game\NIKKE_HMT',
-  [string]$Quarantine = ("D:\archive\nikke-k2f-quarantine-" + (Get-Date -Format 'yyyyMMdd-HHmmss'))
+  [string]$InstallPath,
+  [string]$Quarantine = (Join-Path $env:USERPROFILE ("nikke-k2f-quarantine-" + (Get-Date -Format 'yyyyMMdd-HHmmss')))
 )
+
+# Find the install the same way Check-K2F.ps1 does when -InstallPath is not given.
+if (-not $InstallPath) {
+  $cands = @()
+  foreach ($k in 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*', 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*', 'HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*') {
+    Get-ItemProperty $k -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName -like '*NIKKE*' -and $_.InstallLocation } | ForEach-Object { $cands += $_.InstallLocation.TrimEnd('\') }
+  }
+  if (-not $cands) {
+    foreach ($d in (Get-PSDrive -PSProvider FileSystem).Root) { foreach ($g in "$d*NIKKE*", "$d*\*NIKKE*", "$d*\*\*NIKKE*") { Get-Item $g -Force -ErrorAction SilentlyContinue | Where-Object PSIsContainer | ForEach-Object { $cands += $_.FullName } } }
+  }
+  $InstallPath = $cands | Where-Object { (Test-Path "$_\intl_service") -or (Test-Path "$_\launcher\intl_service") } | Select-Object -First 1
+  if (-not $InstallPath) { Write-Host '找不到 NIKKE 安裝資料夾，請用 -InstallPath 指定（例：-InstallPath D:\NIKKE）。啟動器紀錄的證據備份會略過。' -ForegroundColor Yellow; $InstallPath = '' }
+}
 
 $ErrorActionPreference = 'Continue'
 $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
@@ -39,12 +52,16 @@ function Ensure-Dir([string]$p) { if (-not (Test-Path $p)) { New-Item -ItemType 
 if (-not $Apply) { Write-Host '試跑模式 (dry-run)：只列出會做的事。確認後加 -Apply 再跑一次。' -ForegroundColor Yellow }
 Write-Host "隔離區：$Quarantine"
 
-$L = if (Test-Path "$InstallPath\launcher\intl_service") { "$InstallPath\launcher" } else { $InstallPath }
+$L = if (-not $InstallPath) { '' } elseif (Test-Path "$InstallPath\launcher\intl_service") { "$InstallPath\launcher" } else { $InstallPath.TrimEnd('\') }
 
 # 1. processes
 Step '1. 結束 NIKKE 啟動器程序'
-$procs = @(Get-Process -ErrorAction SilentlyContinue | Where-Object { $_.Path -and $_.Path.StartsWith($L, [StringComparison]::OrdinalIgnoreCase) })
-$procs += @(Get-Process -Name tbs_browser, INTLWebViewHelper, intl_service -ErrorAction SilentlyContinue)
+$procs = @()
+# Never match on an empty or drive-root prefix: StartsWith('') is true for every process.
+if ($L -and $L.Length -gt 3) {
+  $procs += @(Get-Process -ErrorAction SilentlyContinue | Where-Object { $_.Path -and $_.Path.StartsWith($L + '\', [StringComparison]::OrdinalIgnoreCase) })
+}
+$procs += @(Get-Process -Name tbs_browser, INTLWebViewHelper, intl_service, nikke_launcher, nikke_launcher_hmt -ErrorAction SilentlyContinue)
 $procs = $procs | Sort-Object Id -Unique
 if ($procs) { foreach ($p in $procs) { Do-It "停止 $($p.Name) (PID $($p.Id))" { Stop-Process -Id $p.Id -Force } } } else { Write-Host '  沒有執行中的啟動器程序' }
 
@@ -84,7 +101,7 @@ foreach ($A in Get-ChildItem $env:APPDATA -Directory -Force -Filter 'nikke_launc
   }
 }
 foreach ($src in "$L\intl_service\debug.log", "$L\log\tinyget") {
-  if (Test-Path $src) { Do-It "複製 $src 到隔離區（原檔保留）" { $dst = Join-Path $Quarantine 'launcher-logs'; Ensure-Dir $dst; Copy-Item -LiteralPath $src -Destination $dst -Recurse -Force -ErrorAction Stop } }
+  if ($L -and (Test-Path $src)) { Do-It "複製 $src 到隔離區（原檔保留）" { $dst = Join-Path $Quarantine 'launcher-logs'; Ensure-Dir $dst; Copy-Item -LiteralPath $src -Destination $dst -Recurse -Force -ErrorAction Stop } }
 }
 $tmp = @(Get-ChildItem $env:TEMP -Force -ErrorAction SilentlyContinue | Where-Object { $_.Name -like 'k2f-bcreds*' -or $_.Name -like 'k2f_screen*' -or $_.Name -like 'k2f*.lua' })
 foreach ($t in $tmp) { Do-It "移動 $($t.FullName) 到隔離區" { $dst = Join-Path $Quarantine 'temp'; Ensure-Dir $dst; Move-Item -LiteralPath $t.FullName -Destination $dst -Force -ErrorAction Stop } }
