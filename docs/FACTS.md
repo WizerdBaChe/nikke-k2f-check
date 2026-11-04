@@ -80,7 +80,7 @@ M：HSTS 雜湊是 Chromium 的算法：主機名稱轉成 DNS 線路格式（�
 - 支持這說法的線索：被竄改的 `aegis-fix.min.js` 放在 `sg-gpts.playerinfinite.com/comm/assets/lib/`，路徑看起來是共用的；另外 3 個檔案有 2 個在 `nikke_launcher/` 路徑下 — G（路徑），推論
 - 反證（只限一台電腦、一個版本）：三角洲 **Garena 版**啟動器（2026-08 安裝，最後開啟 2026-09-09，早於竄改開始的 09-27）的網頁內容全部來自 `launcher.jupiterlauncher.com` 和 Garena 網域，`debug.log`、`%APPDATA%\df_garena_launcher*` 都沒有出現 `playerinfinite`、`insightjs` 或 `k2f` — M2。這不能代表 Steam 版或國際版，也不能代表 09-27 之後的版本
 - 腳本的做法：`Check-K2F.ps1` 也認得三角洲 Garena 版的資料夾結構（`launcher\service\debug.log`、`%APPDATA%\df_garena_launcher*`），並掃描所有含 `tbs_cache` 的 `%APPDATA%` 資料夾。用的痕跡和妮姬相同，前提是同一隻木馬；其他遊戲目前沒有任何公開樣本
-- `Remediate-K2F.ps1` 只處理妮姬的啟動器快取
+- `Remediate-K2F.ps1`：妮姬的啟動器快取一律隔離；其他啟動器的快取只有找到 `insightjs` 或 `k2f.agent.state` 時才隔離
 
 ## 已撤回、不算痕跡
 

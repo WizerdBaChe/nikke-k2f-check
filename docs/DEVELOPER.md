@@ -67,7 +67,9 @@ flowchart LR
 
 - 字串比對一律讀位元組（Latin-1 一對一解碼），同時比 ASCII 與 UTF-16LE。原因：leveldb 與 Code Cache 是二進位檔，`Select-String` 在實測機上漏抓 `k2f.agent.state`。
 - 檢查範圍是目前使用者，加上 `-UsersRoot`（預設 `C:\Users`）底下讀得到的每個使用者資料夾：啟動器快取、瀏覽器資料夾、TEMP。其他使用者的 HKCU 登錄要用那個帳號登入再跑。使用者清單的邏輯在 `Check-K2F.ps1` 第 0a 段與 `Remediate-K2F.ps1` 開頭各有一份，要一起改。
-- 找安裝資料夾：`-InstallPath` → 解除安裝登錄 → URL protocol 圖示與 `url_protocol.reg` → 都找不到真的啟動器時，才搜各磁碟前三層名稱含 NIKKE 的資料夾。
+- 找安裝資料夾：`-InstallPath` → 解除安裝登錄（名稱含 NIKKE 或 Delta Force）→ URL protocol 圖示、資料夾裡的 `url_protocol.reg` 或資料夾旁的 `<資料夾名>.reg` → 都找不到真的啟動器時，才搜各磁碟前三層名稱含 NIKKE 或 Delta Force 的資料夾。
+- 啟動器資料夾的判斷：底下有 `intl_service`（妮姬）或 `service\debug.log`（三角洲 Garena 版），本身或 `launcher\` 子資料夾都算。這段在三支腳本各有一份（Check 的 `Resolve-Launchers`、Remediate 的 `Resolve-LauncherDir`、Sweep 的 debug.log 篩選），要一起改。
+- 啟動器網頁快取：`%APPDATA%` 底下名稱是 `nikke_launcher*`，或含有 `tbs_cache` 的資料夾（三角洲 Garena 版是 `df_garena_launcher`）。妮姬以外的遊戲沒有公開樣本，所以 `Remediate` 只在這類快取裡找到 `insightjs` 或 `k2f.agent.state` 時才隔離；妮姬的快取一律隔離。
 - hosts：任何沒被註解、把網域指到 `0.0.0.0`、`127.0.0.1`、`::1`、`::` 的行都算封鎖。防火牆：規則要啟用、連出、封鎖，而且涵蓋兩個 IP 才算；`Remediate` 發現同名規則內容不對會重建。
 - `agent_pass` 不會印出，也不寫進報告。
 
@@ -95,11 +97,20 @@ flowchart LR
 | 新版在實測機上重跑（機器已處理過） | clean-known，exit 0；防火牆規則內容核對為已封鎖 |
 | HSTS 雜湊 | 自行重算三個網域，與 hamzzi 工具的常數一致 |
 
+2026-11-04 加入三角洲 Garena 版的資料夾結構之後：
+
+| 檢查 | 結果 |
+|---|---|
+| `tests/Run-FixtureTests.ps1` 對新版 | 37 項全過 |
+| 新增的 P8/N8（檢查）對改版前的 `Check-K2F.ps1` | 6 項中 5 項失敗（唯一通過的是「乾淨紀錄不誤報」，舊版本來就不會報） |
+| 新增的 R2（處理）對改版前的 `Remediate-K2F.ps1` | 4 項中 2 項失敗：三角洲快取沒被隔離、`service\debug.log` 沒備份 |
+| 作者電腦上真的三角洲 Garena 版（2026-08 安裝，最後開啟 09-09） | 不加 `-InstallPath` 也找得到 `D:\game\Delta Force\launcher`；clean-known，exit 0；`Remediate` 試跑判定它的快取「沒有木馬痕跡，不動」 |
+
 測試屬於範例測試（每個檢查一個正向、一個負向情境），不是對所有輸入的證明。32 位元登錄的案例是在 Claude 桌面 App 的終端機裡跑的，那裡的 HKCU 是 App 自己的虛擬化視圖，所以只證明腳本邏輯，沒碰到真正的使用者登錄。
 
 開發途中測試抓到一個回歸：`Get-ChildItem -LiteralPath ... -Include` 在 PowerShell 5.1 會忽略 `-Include`，把 Chrome 整個 Application 資料夾都報成殘留檔；已改回 `-Path`，負向案例 N0 就是防這個。
 
-沒驗證過：國際版與日版的安裝資料夾結構、Proton/Linux、第 2 階段在真實中毒機上的正向對照（實測機沒有第 2 階段痕跡）、防火牆規則重建（需要系統管理員）、`Sweep-Persistence.ps1` 離線掃描建議的 BitLocker 與「Defender 非主要防毒」分支（實測機只走到一般分支）。
+沒驗證過：國際版與日版的安裝資料夾結構、三角洲 Steam 版與國際版、其他 Level Infinite 遊戲的啟動器、三角洲上的正向對照（沒有中毒的三角洲樣本）、Proton/Linux、第 2 階段在真實中毒機上的正向對照（實測機沒有第 2 階段痕跡）、防火牆規則重建（需要系統管理員）、`Sweep-Persistence.ps1` 離線掃描建議的 BitLocker 與「Defender 非主要防毒」分支（實測機只走到一般分支）。
 
 跑測試（會在 `%TEMP%` 建假資料夾，結束後刪掉；會暫時建立一個 HKCU 登錄項並在結束時移除）：
 
@@ -112,7 +123,7 @@ powershell -ExecutionPolicy Bypass -File .\tests\Run-FixtureTests.ps1
 A 必驗
 1. 在你自己的 PowerShell 視窗跑 `Check-K2F.ps1`，最後一行有出現四種判定之一。
 2. `Remediate-K2F.ps1` 不加 `-Apply` 時，輸出每一行都是 `[would]` 或「沒有…」，沒有任何東西被搬走。
-3. 加 `-Apply` 後，隔離資料夾裡有 `nikke_launcher*-tbs_cache` 與 `launcher-logs`。
+3. 加 `-Apply` 後，隔離資料夾裡有 `nikke_launcher*-tbs_cache` 與 `launcher-logs`；沒有痕跡的其他遊戲快取（例如 `df_garena_launcher`）留在原地。
 4. 處理後重跑 `Check-K2F.ps1`，判定不再是「木馬元件仍在」。
 
 B 體驗
