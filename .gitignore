@@ -5,6 +5,10 @@
 reports/
 *.report.json
 
+# one-file launcher built by tools/Build-OneFile.ps1 (shipped as a release asset)
+# class: regenerable
+dist/
+
 # OS and editor droppings
 # class: regenerable
 Thumbs.db

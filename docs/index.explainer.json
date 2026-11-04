@@ -19,12 +19,29 @@
     {"id": "terminal", "term": "終端機", "en": "PowerShell", "gloss": "Windows 內建輸入指令的視窗。在開始按鈕上按右鍵，選「終端機」或「Windows PowerShell」就會打開。"}
   ],
   "refs": [
+    {"id": "dl", "label": "單一檔案下載", "detail": "nikke-k2f-check.cmd：下載後雙擊就開始檢查。", "href": "https://github.com/WizerdBaChe/nikke-k2f-check/releases/latest/download/nikke-k2f-check.cmd"},
+    {"id": "rel", "label": "各版本與 SHA-256", "detail": "每一版單一檔案的發布頁，附檔案的 SHA-256，可以核對。", "href": "https://github.com/WizerdBaChe/nikke-k2f-check/releases"},
     {"id": "gist", "label": "MotherSphere 技術整理", "detail": "完整的痕跡清單、時間線與移除順序。", "href": "https://gist.github.com/MotherSphere/d6c049a09ba8ac3085c51ee9df24a4e5"},
     {"id": "wormw", "label": "WormW 樣本分析", "detail": "木馬本體的行為分析與偵測規則。", "href": "https://github.com/WormW/nikke_malware_analysis"},
     {"id": "baha", "label": "巴哈姆特整理文", "detail": "中文懶人包與判斷標準。", "href": "https://m.gamer.com.tw/forum/C.php?bsn=36390&snA=23304"},
     {"id": "repo", "label": "工具原始碼", "detail": "四支 PowerShell 腳本，下載前可以先看內容。", "href": "https://github.com/WizerdBaChe/nikke-k2f-check"}
   ],
   "sections": [
+    {
+      "id": "easy",
+      "heading": "最簡單：下載一個檔案、雙擊",
+      "summary": "下載 nikke-k2f-check.cmd，雙擊，看結果；有痕跡才會問你要不要清除。",
+      "takeaways": ["下載連結在 [[r:dl]]", "有痕跡：先用手機換密碼，再按 Y"],
+      "blocks": [
+        {"type": "steps", "items": [
+          {"title": "下載", "text": "打開 [[r:dl]] 的連結（在本頁最下面「出處」裡可以直接點）。瀏覽器說「這類檔案可能有害」的話，選「保留」。"},
+          {"title": "雙擊", "text": "到「下載」資料夾雙擊 nikke-k2f-check.cmd。出現藍色的「Windows 已保護您的電腦」，按「其他資訊」→「仍要執行」。"},
+          {"title": "看結果", "text": "等 30 秒到 1 分鐘，看視窗最後幾行，對照 [[s:verdict]]。"},
+          {"title": "要清除的話", "text": "有找到痕跡，它會問要不要清除。**先用手機換密碼**（見 [[s:fix]]），再輸入 Y。系統管理員視窗按「是」，它會先列出一份編號的「總結」清單（常被忘記的 nikke_launcher_HMT 啟動器快取也在裡面），再問一次 Y 才動手；做完每一項會標成功或失敗。東西只搬到隔離資料夾，不刪除。"}
+        ]},
+        {"type": "callout", "kind": "note", "title": "這個檔案安全嗎？", "text": "它裡面就是這套工具的三支程式，打包成文字。執行時把它們放到暫存資料夾、核對沒被改過才跑，**不會從網路下載任何東西**；沒有回答兩次 Y 就不會改電腦。每一版的 SHA-256 在 [[r:rel]]，從別人轉傳拿到的檔案請先核對。會用終端機的人，也可以照 [[s:check]] 一步一步自己跑。"}
+      ]
+    },
     {
       "id": "deltaforce",
       "heading": "三角洲玩家看這裡",
@@ -65,6 +82,7 @@
       "heading": "三個步驟檢查",
       "summary": "下載、打開終端機、貼一行，再看最後一行結果。只讀檔案，不改任何東西。",
       "blocks": [
+        {"type": "para", "text": "不想開終端機的話，用 [[s:easy]] 就好。下面是自己一步一步跑的做法；下載的 ZIP 裡也有 Run-Check.cmd，雙擊效果和單一檔案相同。"},
         {"type": "steps", "items": [
           {"title": "下載工具", "text": "到 [[r:repo]] 頁面按綠色的 Code → Download ZIP，解壓縮到「下載」資料夾，會得到一個 nikke-k2f-check-main 資料夾。"},
           {"title": "打開終端機", "text": "在開始按鈕上按右鍵，選「終端機」或「Windows PowerShell」。看 [[g:terminal]]。"},

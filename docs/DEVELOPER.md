@@ -10,11 +10,16 @@ nikke-k2f-check/
 ├── Remediate-K2F.ps1        處置：預設試跑，-Apply 才動手，一律隔離不刪
 ├── Sweep-Persistence.ps1    只讀：木馬活動時段內新增的自動啟動項與未簽章檔案
 ├── Test-CdnFiles.ps1        只送 HEAD：比對 4 個 CDN 檔案的 ETag
+├── Run-K2F.ps1              雙擊流程：檢查 → 有痕跡才問要不要清 → 提權 → 試跑清單 → 再問一次 → 清除 → 重查
+├── Run-Check.cmd            ZIP 版的雙擊入口，呼叫 Run-K2F.ps1（加 check 只檢查）
 ├── README.md / README.en.md
 ├── AGENTS.md                給 AI 代理的事實與步驟
 ├── llms.txt                 機器索引
+├── tools/
+│   └── Build-OneFile.ps1    產生單檔 dist\nikke-k2f-check.cmd（放到 GitHub Releases）
 ├── tests/
-│   └── Run-FixtureTests.ps1 假資料夾測試：每個檢查各一個正向、一個負向案例
+│   ├── Run-FixtureTests.ps1 假資料夾測試：每個檢查各一個正向、一個負向案例
+│   └── Run-LauncherTests.ps1 兩個雙擊入口的測試（結束碼、解出的檔案、損壞的單檔）
 └── docs/
     ├── FACTS.md             事實清單（單一來源）
     ├── DEVELOPER.md         本文件
@@ -124,10 +129,25 @@ flowchart LR
 
 沒驗證過：國際版與日版的安裝資料夾結構、三角洲 Steam 版與國際版、其他 Level Infinite 遊戲的啟動器、三角洲上的正向對照（沒有中毒的三角洲樣本）、Proton/Linux、第 2 階段在真實中毒機上的正向對照（實測機沒有第 2 階段痕跡；外部證據見上一段）、疑似變種規則的真實案例（目前沒有任何人見過）、其他使用者帳號的 HKCU（要該帳號登入再跑）、防火牆規則重建（需要系統管理員）、`Sweep-Persistence.ps1` 離線掃描建議的 BitLocker 與「Defender 非主要防毒」分支（實測機只走到一般分支）。
 
-跑測試（會在 `%TEMP%` 建假資料夾，結束後刪掉；會暫時建立一個 HKCU 登錄項並在結束時移除）：
+2026-11-05 加入雙擊入口（`Run-Check.cmd`、單檔 `nikke-k2f-check.cmd`）與處理工具結尾的編號總結之後：
+
+| 檢查 | 結果 |
+|---|---|
+| `tests/Run-FixtureTests.ps1` 對新版 | 53 項全過 |
+| 新增的總結斷言對改版前 `main` 的 `Remediate-K2F.ps1` | 3 項失敗：試跑總結件數（舊版抓不到，新版 5 件）、HMT 快取在總結裡有編號、套用後「失敗 0 件」。同一輪裡 `nikke_launcher_HMT` 快取的偵測與隔離舊版也過：這個資料夾本來就在 `nikke_launcher*` 規則內 |
+| `tests/Run-LauncherTests.ps1` | 11 項全過：兩個入口的結束碼等於 `Check-K2F.ps1` 自己的；單檔解出的三支腳本與 repo 逐位元組相同；TEMP 放假痕跡時回 3、報告有印到畫面、沒按 Y 不動任何東西；改一個字回 91、少一段回 90 |
+| 開發途中 L4 抓到的回歸 | `Run-K2F.ps1` 原本另開子程序跑檢查，報告被吃進函式回傳值，結束碼變成 0（應為 3）；改成同程序呼叫加 `Out-Host` |
+
+單檔的做法：`tools/Build-OneFile.ps1` 把三支腳本以 base64 加 SHA-256 嵌進一個 ASCII 的 `.cmd`；執行時 PowerShell 讀自己、驗雜湊、寫到 `%TEMP%\nikke-k2f-check-<build>\` 再執行，不連網。發布時把 `dist\nikke-k2f-check.cmd` 上傳到 GitHub Release，檔名固定，README 的 `releases/latest/download/` 連結才會指到最新版。
+
+跑測試（會在 `%TEMP%` 建假資料夾，結束後刪掉；會暫時建立幾個 HKCU 登錄項並在結束時移除）：
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\tests\Run-FixtureTests.ps1
+```
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tests\Run-LauncherTests.ps1
 ```
 
 ## 手動驗收清單
@@ -137,6 +157,8 @@ A 必驗
 2. `Remediate-K2F.ps1` 不加 `-Apply` 時，輸出每一行都是 `[would]` 或「沒有…」，沒有任何東西被搬走。
 3. 加 `-Apply` 後，隔離資料夾裡有 `nikke_launcher*-tbs_cache` 與 `launcher-logs`；沒有痕跡的其他遊戲快取（例如 `df_garena_launcher`）留在原地。
 4. 處理後重跑 `Check-K2F.ps1`，判定不再是「木馬元件仍在」。
+5. 從 Releases 下載 `nikke-k2f-check.cmd` 後雙擊：瀏覽器與 SmartScreen 的警告照 README 步驟能過，檢查結果出現在最後幾行，視窗等你按 Enter 才關。
+6. 有痕跡時的雙擊流程：第一個 Y 會跳系統管理員確認；新視窗先列出編號總結，第二個 Y 之後才搬東西，最後自動重查一次（自動測試只跑到「沒按 Y 不動」，提權那段沒有自動測試）。
 
 B 體驗
 1. 玩家說明頁在手機寬度下，指令區塊能左右捲動、複製按鈕可用。
