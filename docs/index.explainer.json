@@ -1,0 +1,127 @@
+{
+  "schema": "explainer/2",
+  "meta": {
+    "title": "NIKKE 啟動器木馬：自我檢查與處理",
+    "subtitle": "一分鐘查出有沒有中，中了照順序處理",
+    "date": "2026-11-04",
+    "audience": "audience",
+    "lang": "zh-TW",
+    "author": "WizerdBaChe",
+    "purpose": "看完之後你知道：自己有沒有中、中了先做什麼、什麼時候可以再打開啟動器。",
+    "source_note": "痕跡清單整理自 MotherSphere 技術整理、WormW 樣本分析與巴哈姆特整理文；工具原始碼在 github.com/WizerdBaChe/nikke-k2f-check，MIT 授權。這不是官方工具。"
+  },
+  "glossary": [
+    {"id": "launcher", "term": "啟動器", "en": "launcher", "gloss": "電腦版 NIKKE 開遊戲前出現的那個視窗。它會從網路載入公告和網頁，這次出事的就是它載入的程式。"},
+    {"id": "cdn", "term": "CDN", "en": "content delivery network", "gloss": "官方用來把檔案發到世界各地的伺服器群。各地有很多節點，你連到的不一定是同一台。"},
+    {"id": "trojan", "term": "木馬", "en": "remote access trojan", "gloss": "讓攻擊者可以遠端操作你電腦的程式：執行指令、截圖、偷存在電腦裡的密碼和金鑰。"},
+    {"id": "etag", "term": "檔案指紋", "en": "ETag", "gloss": "伺服器給每個檔案版本的一串代號。檔案內容一變，代號就跟著變，所以可以拿來比對是不是乾淨的版本。"},
+    {"id": "quarantine", "term": "隔離資料夾", "en": "quarantine folder", "gloss": "處理工具把可疑檔案搬去的地方，在你的使用者資料夾底下。東西沒有被刪掉，只是搬走並改名，不會再被載入。"},
+    {"id": "terminal", "term": "終端機", "en": "PowerShell", "gloss": "Windows 內建輸入指令的視窗。在開始按鈕上按右鍵，選「終端機」或「Windows PowerShell」就會打開。"}
+  ],
+  "refs": [
+    {"id": "gist", "label": "MotherSphere 技術整理", "detail": "完整的痕跡清單、時間線與移除順序。", "href": "https://gist.github.com/MotherSphere/d6c049a09ba8ac3085c51ee9df24a4e5"},
+    {"id": "wormw", "label": "WormW 樣本分析", "detail": "木馬本體的行為分析與偵測規則。", "href": "https://github.com/WormW/nikke_malware_analysis"},
+    {"id": "baha", "label": "巴哈姆特整理文", "detail": "中文懶人包與判斷標準。", "href": "https://m.gamer.com.tw/forum/C.php?bsn=36390&snA=23304"},
+    {"id": "repo", "label": "工具原始碼", "detail": "四支 PowerShell 腳本，下載前可以先看內容。", "href": "https://github.com/WizerdBaChe/nikke-k2f-check"}
+  ],
+  "sections": [
+    {
+      "id": "who",
+      "heading": "你需要檢查嗎",
+      "summary": "9 月 27 日之後在電腦上開過啟動器，就建議檢查。",
+      "takeaways": ["只玩手機版：目前沒有出事回報", "檢查完之前先別開電腦版"],
+      "blocks": [
+        {"type": "para", "text": "2026 年 9 月底到 11 月初，官方 [[g:cdn]] 上有 4 個檔案被攻擊者竄改。[[g:launcher]] 一打開就會自動載入它們，部分玩家因此被裝上遠端控制 [[g:trojan]]。它會偷瀏覽器存的密碼和登入狀態、NIKKE 帳密、各種金鑰，以及加密貨幣錢包。"},
+        {"type": "para", "text": "只要 9 月 27 日之後在 **電腦** 上打開過啟動器，國際版、港澳台版、日版都算，Steam Deck 和 Linux 也算，就建議檢查。只玩手機版的話，目前沒有出事的回報。"},
+        {"type": "callout", "kind": "warn", "title": "先做這件事", "text": "檢查和處理完之前，不要再打開電腦版啟動器。"}
+      ]
+    },
+    {
+      "id": "check",
+      "heading": "四個步驟檢查",
+      "summary": "下載、打開終端機、貼一行、看結果。只讀檔案，不改任何東西。",
+      "blocks": [
+        {"type": "steps", "items": [
+          {"title": "下載工具", "text": "到 [[r:repo]] 頁面按綠色的 Code → Download ZIP，解壓縮到「下載」資料夾，會得到一個 nikke-k2f-check-main 資料夾。"},
+          {"title": "打開終端機", "text": "在開始按鈕上按右鍵，選「終端機」或「Windows PowerShell」。看 [[g:terminal]]。"},
+          {"title": "貼上指令", "text": "複製下面這行，在終端機視窗裡按右鍵貼上，再按 Enter。"},
+          {"title": "看最後一行", "text": "對照下一節的表格。"}
+        ]},
+        {"type": "code", "lang": "powershell", "caption": "檢查（只讀）", "text": "powershell -ExecutionPolicy Bypass -File \"$HOME\\Downloads\\nikke-k2f-check-main\\Check-K2F.ps1\""},
+        {"type": "para", "text": "如果它說找不到安裝資料夾，在那行最後加上空格和你的安裝位置，例如 -InstallPath D:\\NIKKE。"}
+      ]
+    },
+    {
+      "id": "verdict",
+      "heading": "結果怎麼看",
+      "summary": "四種結果；紅字分第 1、第 2 階段。",
+      "takeaways": ["看到階段 2：處理完前 Chrome 不要登入任何帳號"],
+      "blocks": [
+        {"type": "table", "caption": "最後一行的四種結果", "columns": ["最後一行顯示", "意思", "接下來"], "rows": [
+          ["中毒，木馬元件仍在", "木馬啟動過，電腦裡還有它的元件。", "先用手機改密碼，再做「中了之後」那一節。"],
+          ["曾經中毒，只剩歷史紀錄", "木馬啟動過，已知元件已經清掉，只剩啟動器的紀錄檔。", "被偷的密碼和金鑰仍然有效，換掉才是重點。"],
+          ["有接觸，未見木馬啟動", "啟動器載入過攻擊者的程式，但沒看到木馬真正啟動。", "改 NIKKE 和重要帳號的密碼。"],
+          ["沒發現已知痕跡", "目前已知的痕跡都沒有出現。", "不代表百分之百安全；確認官方檔案乾淨前先別開啟動器。"]
+        ]},
+        {"type": "para", "text": "紅字會標第 1 或第 2 階段。第 1 階段是木馬在啟動器裡活動，關掉啟動器它就停了。第 2 階段是它寄生在 Chrome 裡，關掉遊戲之後還會繼續偷資料。看到第 2 階段，在處理完並重新開機之前，這台電腦上的 Chrome 都不要再登入任何帳號。"}
+      ]
+    },
+    {
+      "id": "fix",
+      "heading": "中了之後的處理",
+      "summary": "先用手機換密碼，再用處理工具清掉元件。",
+      "takeaways": ["換密碼工具做不到，要你自己來", "處理工具只搬不刪"],
+      "blocks": [
+        {"type": "para", "text": "**第一步：用手機換掉密碼和金鑰。** 這一步最重要，而且工具做不到。用手機或另一台乾淨的電腦，從最重要的開始："},
+        {"type": "bullets", "items": [
+          "Google 帳號（同時也是 Chrome 的密碼庫）：改密碼，到「安全性 → 你的裝置」登出所有裝置，開啟兩步驟驗證。",
+          "Email、網路銀行、Discord、Steam 等主要帳號。",
+          "有寫程式的人：撤銷 GitHub 權杖和 SSH 金鑰，到各 AI 和雲端服務後台把 API 金鑰作廢重發，命令列工具重新登入。",
+          "Chrome 裡存過密碼的其他網站。",
+          "NIKKE（Level Infinite）帳號。",
+          "加密貨幣：助記詞沒辦法「改」，只能開新錢包，把資產轉過去。"
+        ]},
+        {"type": "para", "text": "**第二步：清掉電腦裡的木馬元件。** 在開始按鈕上按右鍵，選「終端機（系統管理員）」。先試跑一次，它只會列出打算做的事："},
+        {"type": "code", "lang": "powershell", "caption": "處理：試跑（只列出，不動手）", "text": "powershell -ExecutionPolicy Bypass -File \"$HOME\\Downloads\\nikke-k2f-check-main\\Remediate-K2F.ps1\""},
+        {"type": "para", "text": "清單看起來沒問題，再加上 -Apply 真的執行："},
+        {"type": "code", "lang": "powershell", "caption": "處理：真的執行", "text": "powershell -ExecutionPolicy Bypass -File \"$HOME\\Downloads\\nikke-k2f-check-main\\Remediate-K2F.ps1\" -Apply"},
+        {"type": "para", "text": "它會結束啟動器、移除 Chrome 後門的登錄項和檔案、清掉啟動器快取，並封鎖攻擊者的網址和 IP。所有東西都是搬到 [[g:quarantine]]，不會直接刪除。如果它說檔案被鎖住，重新開機後再跑一次。最後再跑一次檢查，確認結果。"}
+      ]
+    },
+    {
+      "id": "noreinstall",
+      "heading": "沒辦法重灌的話",
+      "summary": "重灌最保險；不能重灌就跑後門掃描，再做 Defender 完整掃描。",
+      "blocks": [
+        {"type": "para", "text": "這隻木馬能執行任意指令，所以最保險的做法是重灌 Windows。資料太多、沒辦法重灌的話，跑下面這支掃描。它會從啟動器的紀錄算出木馬真正活動的時段，把那段時間新出現的自動啟動項和沒有簽章的程式排在最前面。大約要兩到三分鐘。"},
+        {"type": "code", "lang": "powershell", "caption": "後門掃描（只讀）；把安裝位置換成你的", "text": "powershell -ExecutionPolicy Bypass -File \"$HOME\\Downloads\\nikke-k2f-check-main\\Sweep-Persistence.ps1\" -InstallPath D:\\NIKKE"},
+        {"type": "para", "text": "「優先檢視」沒有項目是好消息。下面的其他清單大多是你自己裝的正常軟體，看看有沒有不認得的就好。最後用 Windows 安全性做一次完整掃描和離線掃描。"}
+      ]
+    },
+    {
+      "id": "reopen",
+      "heading": "什麼時候可以再打開啟動器",
+      "summary": "不必只信官方說法：自己比對 4 個檔案的指紋。",
+      "takeaways": ["4 個都乾淨才算", "隔幾小時多查幾次"],
+      "blocks": [
+        {"type": "para", "text": "官方說已經修好了，你也可以自己確認。下面這支只向官方 [[g:cdn]] 查那 4 個檔案的 [[g:etag]]，跟研究者公布的乾淨版本比對，不會下載或執行任何程式。"},
+        {"type": "code", "lang": "powershell", "caption": "官方檔案比對", "text": "powershell -ExecutionPolicy Bypass -File \"$HOME\\Downloads\\nikke-k2f-check-main\\Test-CdnFiles.ps1\""},
+        {"type": "para", "text": "4 個都顯示「乾淨」才算數。CDN 在各地有很多節點，建議隔幾個小時查幾次，次次都乾淨再打開。打開前，先確認已經跑過處理工具，它會清掉啟動器快取裡的舊檔案。"}
+      ]
+    },
+    {
+      "id": "limits",
+      "heading": "這套工具做什麼、不做什麼",
+      "summary": "只找已知痕跡；處理只搬不刪；不是官方工具。",
+      "blocks": [
+        {"type": "bullets", "items": [
+          "檢查只讀不寫；處理時一律搬到隔離資料夾，不刪除。",
+          "它只能找 **已知** 的痕跡。沒找到不等於百分之百安全，所以才有「沒辦法重灌的話」那一節的掃描。",
+          "網路上常見的一鍵檢查用文字搜尋啟動器快取，但那是二進位檔，可能漏抓木馬的狀態紀錄；這套工具改用位元組比對。",
+          "這裡不提供「一行貼上、直接從網路下載並執行」的指令：這次出事，正是因為程式自動載入了網路上的程式碼。下載之後，你可以先打開 .ps1 檔看內容再執行。",
+          "痕跡清單來自 [[r:gist]] 和 [[r:wormw]]，中文判斷標準參考 [[r:baha]]。這不是官方工具，也不保證能完全清除。"
+        ]}
+      ]
+    }
+  ]
+}

@@ -1,61 +1,114 @@
-# NIKKE PC 啟動器木馬檢查與處置工具
+<div align="center">
 
-針對 2026 年 9 月底至 11/4 的 NIKKE PC 啟動器供應鏈攻擊（supply chain attack）：Level Infinite CDN 上 4 個 JS 被竄改，啟動器載入後下載遠端控制木馬（RAT，代號 K2F，C2 網域 `insightjs.com`）。
+# nikke-k2f-check
 
-## 檔案
+**一分鐘查出電腦版《勝利女神：妮姬》啟動器木馬有沒有中，中了照順序處理。**
 
-| 檔案 | 作用 |
+[English](README.en.md) · 中文
+
+![platform](https://img.shields.io/badge/platform-Windows%2010%2F11-blue) ![shell](https://img.shields.io/badge/PowerShell-5.1%2B-5391FE) ![license](https://img.shields.io/badge/license-MIT-green) ![incident](https://img.shields.io/badge/incident-2026--09--27~11--04-red)
+
+[玩家說明頁](https://wizerdbache.github.io/nikke-k2f-check/) · [快速開始](#快速開始) · [結果怎麼看](#結果怎麼看) · [事實清單](docs/FACTS.md) · [開發文件](docs/DEVELOPER.md) · [給 AI 代理](AGENTS.md)
+
+![玩家說明頁的第一屏：左側章節目錄，右側標題「NIKKE 啟動器木馬：自我檢查與處理」與第一節「你需要檢查嗎」](docs/assets/hero.png)
+
+</div>
+
+## 發生了什麼
+
+2026 年 9 月 27 日起，官方 CDN 上 4 個 JS 檔被竄改。電腦版啟動器一打開就會載入它們，部分玩家因此被裝上遠端控制木馬（K2F）。木馬會偷瀏覽器密碼與登入狀態、NIKKE 帳密、SSH 與 API 金鑰、加密貨幣錢包，還能執行任意指令。官方 11/4 公告已經修復，但**已經中毒的電腦不會因為更新就變乾淨**。
+
+## 你會拿到什麼
+
+| 腳本 | 做什麼 | 會不會改東西 |
+|---|---|---|
+| `Check-K2F.ps1` | 查第 1 階段（啟動器）和第 2 階段（Chrome 常駐）的痕跡，列出木馬活動時間線，並分出「元件仍在」和「只剩歷史紀錄」 | 只讀 |
+| `Remediate-K2F.ps1` | 結束啟動器、移除 Chrome 後門、隔離啟動器快取、封鎖網域與 IP | 預設試跑；加 `-Apply` 才動手，一律搬到隔離資料夾，不刪除 |
+| `Sweep-Persistence.ps1` | 給沒辦法重灌的人：從啟動器紀錄算出木馬真正活動的時段，列出那段時間新增的自動啟動項和未簽章程式 | 只讀 |
+| `Test-CdnFiles.ps1` | 比對官方 CDN 上 4 個檔案的指紋（ETag），判斷能不能再開啟動器 | 只送 HEAD 請求，不下載 |
+
+## 快速開始
+
+1. 按 **Code → Download ZIP**，解壓到「下載」資料夾。
+2. 在開始按鈕上按右鍵 →「終端機」，貼上：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File "$HOME\Downloads\nikke-k2f-check-main\Check-K2F.ps1"
+```
+
+3. 中了的話，**先用手機改密碼**，再打開「終端機（系統管理員）」，先試跑、確認清單，再執行處理：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File "$HOME\Downloads\nikke-k2f-check-main\Remediate-K2F.ps1"
+```
+
+```powershell
+powershell -ExecutionPolicy Bypass -File "$HOME\Downloads\nikke-k2f-check-main\Remediate-K2F.ps1" -Apply
+```
+
+讓 AI 代理（Claude Code、Codex 等）幫你跑，可以貼這段給它：
+
+```text
+Read AGENTS.md in this repo. Run Check-K2F.ps1 read-only and explain the verdict to me.
+Do not run Remediate-K2F.ps1 with -Apply without asking me first.
+```
+
+完整步驟、結果判讀、換密碼的順序，請看[玩家說明頁](https://wizerdbache.github.io/nikke-k2f-check/)。
+
+## 流程
+
+```mermaid
+flowchart TD
+  A[檢查 Check-K2F] -->|沒發現已知痕跡| G[比對官方檔案 Test-CdnFiles]
+  A -->|中毒| P[用手機換密碼與金鑰]
+  P --> R[處理 Remediate-K2F：先試跑，再加 -Apply]
+  R -->|檔案被鎖住| RB[重新開機後再跑一次]
+  RB --> R
+  R --> A2[再檢查一次]
+  A2 -->|只剩歷史紀錄，又不能重灌| S[後門掃描 Sweep-Persistence + Defender 完整掃描]
+  S --> G
+  G -->|4 個都乾淨，隔幾小時再查一次| O[可以再開啟動器]
+```
+
+## 結果怎麼看
+
+| 最後一行顯示 | 意思 |
 |---|---|
-| `Check-K2F.ps1` | 只讀偵測。分第 1 階段（啟動器）、第 2 階段（Chrome 常駐）判定，列出木馬活動時間線。 |
-| `Remediate-K2F.ps1` | 處置。預設試跑（dry-run）只列出要做的事；加 `-Apply` 才動手。所有東西都是**移到隔離區**（`D:\archive\nikke-k2f-quarantine-<時間>`），不直接刪除，dll 會改名防止被載入。 |
+| 中毒，木馬元件仍在 | 木馬啟動過，元件還在電腦裡 |
+| 曾經中毒，只剩歷史紀錄 | 木馬啟動過，已知元件已清除；但被偷的憑證仍然有效 |
+| 有接觸，未見木馬啟動 | 啟動器載入過攻擊者的腳本，但沒看到木馬啟動 |
+| 沒發現已知痕跡 | 已知痕跡都沒出現，不等於百分之百安全 |
 
-## 用法（一定要在你自己開的 PowerShell 視窗跑）
+## 跟網路上一鍵檢查的差別
 
-Claude 桌面版裡的 shell 跑在 MSIX 沙箱（MSIX silo）中，`HKCU` 登錄檔和 `%LOCALAPPDATA%` 可能被虛擬化，看不到第 2 階段的痕跡。所以第 2 階段的判定只在你自己的視窗執行時才可信。
+- 啟動器快取裡的 leveldb 和 Code Cache 是二進位檔。常見一鍵檢查用的 `Select-String` 會漏抓木馬的狀態紀錄 `k2f.agent.state`（在一台中毒的電腦上實測過）；這裡改用位元組比對。
+- 分出「元件仍在」和「只剩歷史紀錄」，處理完重跑，不會永遠顯示中毒。
+- 處理一律搬到隔離資料夾，不刪除；找不到安裝路徑時，也不會誤把所有程序都當成啟動器結束掉。
+- 不提供 `irm ... | iex` 這類「直接從網路下載並執行」的指令：這次事件，出事的正是自動載入遠端程式碼。
 
-```powershell
-powershell -ExecutionPolicy Bypass -File D:\AIWork\nikke-k2f-check\Check-K2F.ps1 -InstallPath D:\game\NIKKE_HMT
-```
+## 你想要…看哪裡
 
-```powershell
-powershell -ExecutionPolicy Bypass -File D:\AIWork\nikke-k2f-check\Remediate-K2F.ps1
-```
+| 你想要 | 看 |
+|---|---|
+| 照步驟檢查、處理 | [玩家說明頁](https://wizerdbache.github.io/nikke-k2f-check/) |
+| 每一條痕跡的來源 | [docs/FACTS.md](docs/FACTS.md) |
+| 腳本怎麼判定、怎麼驗證、有哪些限制 | [docs/DEVELOPER.md](docs/DEVELOPER.md) |
+| 讓 AI 代理幫你跑 | [AGENTS.md](AGENTS.md) |
 
-確認試跑清單後，用「系統管理員」PowerShell 視窗執行（hosts 和防火牆封鎖需要管理員權限）：
+## 限制
 
-```powershell
-powershell -ExecutionPolicy Bypass -File D:\AIWork\nikke-k2f-check\Remediate-K2F.ps1 -Apply
-```
+- 只能找**已知**痕跡。木馬能執行任意指令，最保險的做法仍是重灌。
+- 第 2 階段（HKCU 登錄檔、`%LOCALAPPDATA%`）要在你自己開的 PowerShell 視窗跑才準；在某些沙箱化 App 的內建終端機裡，這兩處可能被虛擬化。
+- 這不是官方工具，痕跡清單會跟著原始研究更新。詳見 [docs/DEVELOPER.md](docs/DEVELOPER.md#限制)。
 
-第 3 步的 Chrome dll 若被鎖住：重新開機後再跑一次 `-Apply`。最後再跑一次 `Check-K2F.ps1` 確認。
+## 致謝與來源
 
-## 判定標準
+[MotherSphere 技術整理](https://gist.github.com/MotherSphere/d6c049a09ba8ac3085c51ee9df24a4e5) · [WormW 樣本分析](https://github.com/WormW/nikke_malware_analysis) · [巴哈姆特整理文](https://m.gamer.com.tw/forum/C.php?bsn=36390&snA=23304)
 
-- **中毒（RED）**：debug.log 有 `k2f_chan registered` + `adopted/resuming` + `agent started as`；或 tinyget 下載紀錄有 `insight.bundle`；或 localStorage 有 `k2f.agent.state`；或 HKCU 有 `{E77CC89B-7401-4C04-8CED-149DB35ADD04}`；或 `PlatformExperienceHelper\<64 碼>\platform_experience_helper.dll` 不是 Google 簽章；或 `%TEMP%\k2f-bcreds*` / `k2f_screen*`。
-- **有接觸（YELLOW）**：只有 `k2f_chan registered`、Code Cache 有 `insightjs`、DNS 快取有 insightjs。
-- 已撤回、不算痕跡的：`onominan.tmp`、`PlatformExperienceHelper` 資料夾本身、`FETCH_LIST suc success`、HKLM 底下同名 CLSID（Windows 的 wpc.dll）。
+## 作者
 
-## 與巴哈一鍵檢查的差異
+[WizerdBaChe](https://github.com/WizerdBaChe) · [wizerdbache.com](https://wizerdbache.com/) · [YouTube](https://www.youtube.com/@wizerdbache) · [Threads](https://www.threads.com/@wizerd.bache)
 
-巴哈文章的一鍵指令用 `Select-String` 搜 leveldb 和 Code Cache；這兩種是 Chromium 二進位檔，`Select-String` 會漏抓（本機實測：`k2f.agent.state` 明明在檔案裡，`Select-String` 搜不到）。本工具改用位元組比對（byte search），同時比 ASCII 與 UTF-16LE。
+## 授權
 
-## 腳本做不到的事：換憑證
-
-木馬會偷：瀏覽器存的密碼與登入狀態（cookie）、SSH/GPG 金鑰、Git 憑證、環境變數、AI 工具設定與 API key / OAuth token（Claude Code、Gemini CLI、Cursor、MCP 設定等）、雲端與套件庫 token、加密貨幣錢包、NIKKE 帳密、螢幕截圖，並可執行任意指令。
-
-用**手機或另一台乾淨裝置**處理，順序由高價值到低：
-
-1. Google 帳號（同時是 Chrome 密碼庫）：改密碼、到「安全性 → 你的裝置」登出所有工作階段、檢查兩步驟驗證。
-2. Email、GitHub（撤銷 personal access token、`gh` 登入、SSH key）、Anthropic（Claude Code 重新登入、撤銷 API key）、Hugging Face token、Cloudflare（API token）、Discord / Telegram / LINE 的 bot token。
-3. 本機所有 `.env`、`~/.ssh`、`~/.git-credentials` 裡的金鑰：一律當作外洩，到各服務後台重發。
-4. Chrome 裡存過密碼的網站、網路銀行。
-5. NIKKE（Level Infinite）帳號。
-6. 加密貨幣：助記詞無法「改」，只能開新錢包把資產轉過去。
-
-最保險的做法是重灌 Windows。
-
-## 參考來源
-
-- MotherSphere 技術整理：https://gist.github.com/MotherSphere/d6c049a09ba8ac3085c51ee9df24a4e5
-- WormW 樣本分析：https://github.com/WormW/nikke_malware_analysis
-- 巴哈姆特整理：https://m.gamer.com.tw/forum/C.php?bsn=36390&snA=23304
+[MIT](LICENSE)

@@ -14,7 +14,7 @@
 .PARAMETER Apply
   Actually perform the steps. Without it the script only prints what it would do.
 .PARAMETER Quarantine
-  Quarantine root. Default D:\archive\nikke-k2f-quarantine-<timestamp>.
+  Quarantine root. Default %USERPROFILE%\nikke-k2f-quarantine-<timestamp>.
 #>
 [CmdletBinding()]
 param(

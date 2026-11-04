@@ -8,7 +8,7 @@
   Run it in YOUR OWN PowerShell window (not inside a sandboxed app shell): HKCU and
   %LOCALAPPDATA% can be virtualized for packaged apps, which would hide stage-2 artifacts.
 .PARAMETER InstallPath
-  NIKKE install root(s), e.g. D:\game\NIKKE_HMT. Auto-discovered when omitted.
+  NIKKE install root(s), e.g. D:\NIKKE. Auto-discovered when omitted.
 .PARAMETER ReportPath
   Optional JSON report path (secrets redacted).
 #>
