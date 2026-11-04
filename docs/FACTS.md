@@ -11,6 +11,7 @@ README、說明頁、`docs/DEVELOPER.md` 與四支腳本用到的痕跡、時間
 - **K** = 韓國玩家 햄찌（hamzzi）的檢查・清除工具 v3.8（2026-11-04，<https://x.com/choi_hamzzi>）。社群工具，不是樣本分析；只靠 K 的項目標「推測擴充」
 - **N** = 社群流傳的「受影響遊戲清單」：4chan 匿名貼文經 NGA 轉貼（2026-11-03），以及一則中文群組公告截圖。都沒有樣本或紀錄佐證，只當作待查線索
 - **M2** = 本 repo 作者在自己電腦上對三角洲 Garena 版啟動器的唯讀檢查（2026-11-04）
+- **M3** = 本 repo 作者在自己電腦上對《鳴潮》官方啟動器版與 Steam 版的唯讀檢查（2026-11-04）
 - **GM** = Gamemeca 報導 <https://www.gamemeca.com/en/view.php?gid=1782921>（2026-11-04，含 Level Infinite 公告與 Krafton 回應）
 - **S** = PUBG: BATTLEGROUNDS 的 Steam 商店頁 <https://store.steampowered.com/app/578080/>（2026-11-04 讀取）
 - **D** = 防毒誤報的網路回報：<https://itch.io/post/14240566>、<https://forum.squareline.io/t/microsoft-defender-claims-trojan-script-wacatac-b-ml-on-installation-file/2681>（使用者回報，非微軟官方文件）
@@ -91,6 +92,9 @@ M：HSTS 雜湊是 Chromium 的算法：主機名稱轉成 DNS 線路格式（�
 - 反證（只限一台電腦、一個版本）：三角洲 **Garena 版**啟動器（2026-08 安裝，最後開啟 2026-09-09，早於竄改開始的 09-27）的網頁內容全部來自 `launcher.jupiterlauncher.com` 和 Garena 網域，`debug.log`、`%APPDATA%\df_garena_launcher*` 都沒有出現 `playerinfinite`、`insightjs` 或 `k2f` — M2。這不能代表 Steam 版或國際版，也不能代表 09-27 之後的版本
 - 三角洲 Garena 版的補充實測（2026-11-04）：啟動器程式檔裡唯一的 Level Infinite 字樣是登入元件中的 `www.levelinfinite.com`，整個安裝資料夾與 `%APPDATA%\df_garena_launcher*` 找不到 `sg-gpts`、`webassets.playerinfinite`、`aegis-fix`、`vue-bucket` — M2
 - 無法驗證的部分：它當時載入網頁的 `launcher.jupiterlauncher.com` 在 2026-11-04 已查不到 DNS，所以無法比對目前的線上版本；作者在台灣不開 VPN 時只找得到 Garena 版，找不到三角洲 Steam 版，沒有樣本可測 — M2
+- 《鳴潮》（Wuthering Waves）的社群猜測：因為騰訊入股庫洛、鳴潮曾與 Level Infinite 合作，有人猜它也中了 — 社群說法，沒有樣本或紀錄，未證實
+- 鳴潮的反證（只限一台電腦）：官方啟動器 `launcher.exe` 與 Steam 版 `Wuthering Waves.exe` 的 Authenticode 簽章都是 KURO TECHNOLOGY (HONG KONG) CO., LIMITED；啟動器網頁元件是 Edge WebView2（`%APPDATA%\KRLauncher\...\KRWebViewUserData`），不是妮姬的 `tbs_cache`。兩個版本依資料夾時間都在 09-27 之後開過。安裝資料夾、`%APPDATA%\KRLauncher`、`%USERPROFILE%\AppData\LocalLow\kurogame` 共約 2,600 個檔案（略過 64 MB 以上與 .pak 等遊戲資源檔）以位元組比對 ASCII 與 UTF-16LE，找不到 `insightjs`、三個 HSTS 雜湊、兩個 C2 IP、`insight.bundle`、`k2f.agent.state`、`playerinfinite`、`sg-gpts`、`aegis-fix`、`vue-bucket`、`levelinfinite`；比對前先用含這些字串的測試檔確認抓得到 — M3。單獨的 `k2f` 三個字母在截圖、壓縮檔與 base64 清單裡有隨機命中，逐筆看過都不是木馬字串
+- `Check-K2F.ps1` 不認得鳴潮的資料夾結構，上面那次比對是作者另外做的；檢查工具的瀏覽器後門（第 2 階段）部分與遊戲無關，玩鳴潮的人照樣可以跑 — M3
 - 腳本的做法：`Check-K2F.ps1` 也認得三角洲 Garena 版的資料夾結構（`launcher\service\debug.log`、`%APPDATA%\df_garena_launcher*`），並掃描所有含 `tbs_cache` 的 `%APPDATA%` 資料夾。用的痕跡和妮姬相同，前提是同一隻木馬；其他遊戲目前沒有任何公開樣本
 - `Remediate-K2F.ps1`：妮姬的啟動器快取一律隔離；其他啟動器的快取只有找到 `insightjs` 或 `k2f.agent.state` 時才隔離
 

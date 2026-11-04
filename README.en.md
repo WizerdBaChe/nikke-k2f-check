@@ -25,6 +25,16 @@ English · [中文](README.md)
 - The circulating list of affected games refers to Delta Force **global / Steam**. From Taiwan without a VPN the author could only find the Garena edition, not the Steam one.
 - Not verified: Garena launcher builds after 09-27 (the author did not update, to avoid the risk; the web host it used no longer resolves, so it cannot be compared online), and the global / Steam builds (none available to test).
 
+## Wuthering Waves players
+
+> **Wuthering Waves, both the official-launcher edition and the Steam edition, does not appear to be affected.**
+
+- Some players guessed it was hit because Tencent holds a stake in Kuro Games and the game once worked with Level Infinite; no sample or log supports that claim.
+- Its launcher is Kuro's own (binaries signed by KURO TECHNOLOGY (HONG KONG)), and the Steam edition starts from a Kuro-signed program too; neither is the tampered Level Infinite launcher. Its web view is Edge WebView2 (data in `%APPDATA%\KRLauncher`), not the one NIKKE uses.
+- The author checked both editions on their own PC (both opened after 09-27, by folder timestamps): about 2,600 files in the install folders, `%APPDATA%\KRLauncher` and `LocalLow\kurogame`, searched byte by byte, contain none of the K2F domains, C2 addresses, malware file names or the tampered Level Infinite CDN hosts.
+- The checker does not recognise the Wuthering Waves folder layout, so there is no need for `-InstallPath`; running the [quick start](#quick-start) is still useful, because the browser-backdoor checks run whatever game you play.
+- Not verified: one PC only; known indicators only.
+
 ## What happened
 
 From 2026-09-27, four JavaScript files on Level Infinite's CDN were tampered with. The NIKKE PC launcher loads them on start, and some players got a remote-access trojan (K2F) that steals browser passwords and cookies, the saved NIKKE login, SSH and API keys, crypto wallets, and can run any command. The publisher announced a fix on 2026-11-04, but **a PC that was already infected does not become clean by updating**.
@@ -109,7 +119,7 @@ flowchart TD
 ## Limits
 
 - Known indicators only; the RAT could run arbitrary commands, so a reinstall remains the safest option.
-- **Other games**: claims that Delta Force global / Steam, Honor of Kings global and other Level Infinite titles were hit are **unconfirmed**. The PUBG on that list is PUBG Mobile, which Krafton says has no PC version and is unrelated; PUBG on PC (Steam) is published by Krafton and launched directly by Steam, without the tampered launcher. For the Delta Force Garena edition see [Delta Force players](#delta-force-players-read-this-first). For other games pass the launcher folder with `-InstallPath`. See [docs/FACTS.md](docs/FACTS.md#其他遊戲未證實).
+- **Other games**: claims that Delta Force global / Steam, Honor of Kings global and other Level Infinite titles were hit are **unconfirmed**. The PUBG on that list is PUBG Mobile, which Krafton says has no PC version and is unrelated; PUBG on PC (Steam) is published by Krafton and launched directly by Steam, without the tampered launcher. For the Delta Force Garena edition see [Delta Force players](#delta-force-players-read-this-first); for Wuthering Waves see [Wuthering Waves players](#wuthering-waves-players). For other games pass the launcher folder with `-InstallPath`. See [docs/FACTS.md](docs/FACTS.md#其他遊戲未證實).
 - Stage 2 (HKCU, `%LOCALAPPDATA%`) is only reliable from your own PowerShell window; some sandboxed app terminals virtualize those locations.
 - Windows Defender may flag the downloaded ZIP (usually a `!ml` machine-learning name such as `Trojan:Script/Wacatac.B!ml`). The code is public for inspection; do not turn off your antivirus for it, report the false positive through Microsoft's file submission page instead. See [docs/FACTS.md](docs/FACTS.md#防毒誤報).
 - Not an official tool. Details: [docs/DEVELOPER.md](docs/DEVELOPER.md#限制).
