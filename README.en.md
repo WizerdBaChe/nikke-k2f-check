@@ -88,6 +88,8 @@ flowchart TD
 | 有接觸，未見木馬啟動 (contact) | The launcher loaded the attacker's script; no agent start seen |
 | 沒發現已知痕跡 (none known) | No known indicator; not a guarantee |
 
+**What does stage 2 (the browser) take?** It is not a separate browser stealer: it is the same remote-access trojan moved into Chrome, so it starts again every time Chrome opens, even after the game is closed or uninstalled, and can do everything it did inside the launcher. On the browser side it reads saved passwords, cookies (live logins that work without the password or 2FA), the decryption key (Chrome's App-Bound Encryption included) and the data of 28 crypto-wallet extensions. Besides changing passwords, sign out of all devices on each site so the stolen logins stop working. Sources: [docs/FACTS.md](docs/FACTS.md#木馬會偷的東西).
+
 ## Differences from the popular one-liner
 
 - leveldb and Code Cache are binary; `Select-String` missed `k2f.agent.state` on a real infected PC. These scripts search bytes (ASCII and UTF-16LE).
@@ -107,7 +109,7 @@ flowchart TD
 ## Limits
 
 - Known indicators only; the RAT could run arbitrary commands, so a reinstall remains the safest option.
-- **Other games**: claims that Delta Force global / Steam, PUBG, Honor of Kings global and other Level Infinite titles were hit are **unconfirmed**. For the Delta Force Garena edition see [Delta Force players](#delta-force-players-read-this-first). For other games pass the launcher folder with `-InstallPath`. See [docs/FACTS.md](docs/FACTS.md#其他遊戲未證實).
+- **Other games**: claims that Delta Force global / Steam, Honor of Kings global and other Level Infinite titles were hit are **unconfirmed**. The PUBG on that list is PUBG Mobile, which Krafton says has no PC version and is unrelated; PUBG on PC (Steam) is published by Krafton and launched directly by Steam, without the tampered launcher. For the Delta Force Garena edition see [Delta Force players](#delta-force-players-read-this-first). For other games pass the launcher folder with `-InstallPath`. See [docs/FACTS.md](docs/FACTS.md#其他遊戲未證實).
 - Stage 2 (HKCU, `%LOCALAPPDATA%`) is only reliable from your own PowerShell window; some sandboxed app terminals virtualize those locations.
 - Windows Defender may flag the downloaded ZIP (usually a `!ml` machine-learning name such as `Trojan:Script/Wacatac.B!ml`). The code is public for inspection; do not turn off your antivirus for it, report the false positive through Microsoft's file submission page instead. See [docs/FACTS.md](docs/FACTS.md#防毒誤報).
 - Not an official tool. Details: [docs/DEVELOPER.md](docs/DEVELOPER.md#限制).

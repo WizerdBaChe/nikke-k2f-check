@@ -420,7 +420,7 @@ li{margin:4px 0}
 #side ~ main{margin-left:var(--pdl-side-w)}
 @media (max-width:920px){#side{width:auto} #side ~ main{margin-left:0}}
 </style>
-<meta name="carrier-stamp" content="{&quot;body_sha256&quot;: &quot;1a6403d6f1b3553e6b6e5122ee4bce9b4a4b2fd373ae5df490ca030bff2a01b0&quot;, &quot;built_at&quot;: &quot;2026-11-04T12:24:59Z&quot;, &quot;carrier&quot;: &quot;html-explainer&quot;, &quot;content_sha256&quot;: &quot;cb73288586bc80b614e38680ade0b0ca1df532322cbb43a1bf31ac2c8c947ad3&quot;, &quot;schema&quot;: &quot;explainer/2&quot;, &quot;version&quot;: 11}">
+<meta name="carrier-stamp" content="{&quot;body_sha256&quot;: &quot;27b3443823ffcdc9425d26d485ca821524e2781a7c527e9370f9469e35c83928&quot;, &quot;built_at&quot;: &quot;2026-11-04T13:22:57Z&quot;, &quot;carrier&quot;: &quot;html-explainer&quot;, &quot;content_sha256&quot;: &quot;d03e2006a87051a9d2cc14cf9e83aa79be0690f8aa269301fc20a74e3ef14c13&quot;, &quot;schema&quot;: &quot;explainer/2&quot;, &quot;version&quot;: 11}">
 </head>
 <body>
 <nav id="side" aria-label="章節導覽"><h1>NIKKE 啟動器木馬：自我檢查與處理</h1><div class="sub">一分鐘查出有沒有中，中了照順序處理</div>
@@ -455,7 +455,7 @@ li{margin:4px 0}
 <div class="chsub">9 月 27 日之後在電腦上開過啟動器，就建議檢查。</div>
 <p>2026 年 9 月底到 11 月初，官方 <span class="sym" tabindex="0" data-key="CDN">CDN</span> 上有 4 個檔案被攻擊者竄改。<span class="sym" tabindex="0" data-key="啟動器">啟動器</span> 一打開就會自動載入它們，部分玩家因此被裝上遠端控制 <span class="sym" tabindex="0" data-key="木馬">木馬</span>。它會偷瀏覽器存的密碼和登入狀態、NIKKE 帳密、各種金鑰，以及加密貨幣錢包。</p>
 <p>只要 9 月 27 日之後在 <b>電腦</b> 上打開過啟動器，國際版、港澳台版、日版都算，Steam Deck 和 Linux 也算，就建議檢查。只玩手機版的話，目前沒有出事的回報。</p>
-<div class="box src" data-kind="note"><span class="tag">其他遊戲也會中嗎？</span>網路上流傳一份清單，說 PUBG、王者榮耀國際版、暗區突圍等同一家發行商的電腦版也中了，但到目前為止 <b>沒有證實</b>。台港澳的三角洲看 <a href="#deltaforce">三角洲玩家看這裡</a>。其他遊戲可以照下一節最後一段，指定那個遊戲的啟動器資料夾再跑一次；瀏覽器後門那部分不管玩哪款遊戲都會查。</div>
+<div class="box src" data-kind="note"><span class="tag">其他遊戲也會中嗎？</span>網路上流傳一份清單，說王者榮耀國際版、暗區突圍等同一家發行商的電腦版也中了，但到目前為止 <b>沒有證實</b>。清單裡的 PUBG 指的是手機版，發行商 Krafton 已說它沒有電腦版、跟這次無關；PUBG 電腦版（Steam）是 Krafton 自己發行、由 Steam 直接啟動，不經過這次出事的啟動器。台港澳的三角洲看 <a href="#deltaforce">三角洲玩家看這裡</a>。其他遊戲可以照下一節最後一段，指定那個遊戲的啟動器資料夾再跑一次；瀏覽器後門那部分不管玩哪款遊戲都會查。</div>
 <div class="box warn" data-kind="warn"><span class="tag">先做這件事</span>檢查和處理完之前，不要再打開電腦版啟動器。</div>
 </section>
 <section class="ch" id="check" data-kind="content">
@@ -471,6 +471,8 @@ li{margin:4px 0}
 <div class="chsub">四種結果；紅字分第 1、第 2 階段。</div>
 <div class="twrap"><table><caption>最後一行的四種結果</caption><thead><tr><th scope="col">最後一行顯示</th><th scope="col">意思</th><th scope="col">接下來</th></tr></thead><tbody><tr><td>中毒，木馬元件仍在</td><td>木馬啟動過，電腦裡還有它的元件。</td><td>先用手機改密碼，再做「中了之後」那一節。</td></tr><tr><td>曾經中毒，只剩歷史紀錄</td><td>木馬啟動過，已知元件已經清掉，只剩啟動器的紀錄檔。</td><td>被偷的密碼和金鑰仍然有效，換掉才是重點。</td></tr><tr><td>有接觸，未見木馬啟動</td><td>啟動器載入過攻擊者的程式，但沒看到木馬真正啟動。</td><td>改 NIKKE 和重要帳號的密碼。</td></tr><tr><td>沒發現已知痕跡</td><td>目前已知的痕跡都沒有出現。</td><td>不代表百分之百安全；確認官方檔案乾淨前先別開啟動器。</td></tr></tbody></table></div>
 <p>紅字會標第 1 或第 2 階段。第 1 階段是木馬在啟動器裡活動，關掉啟動器它就停了。第 2 階段是它寄生在 Chrome 裡，關掉遊戲之後還會繼續偷資料。看到第 2 階段，在處理完並重新開機之前，這台電腦上的 Chrome 都不要再登入任何帳號。</p>
+<div class="box src" data-kind="note"><span class="tag">第 2 階段在瀏覽器裡會拿走什麼？</span>它不是另一隻只偷瀏覽器的程式，而是同一隻 <span class="sym" tabindex="0" data-key="木馬">木馬</span> 搬進 Chrome 住下來：關掉遊戲、甚至刪掉遊戲之後，每次開 Chrome 它都會再跑起來，能做的事跟在啟動器裡一樣。不是每台中毒的電腦都有第 2 階段，要攻擊者另外下指令才會裝上。瀏覽器這部分，它會讀走下面這些：</div>
+<ul><li><b>存起來的密碼</b>。</li><li><b>登入狀態（Cookie）</b>：拿到它，不用密碼、不用兩步驟驗證就能登入你的帳號，所以改密碼之外還要「登出所有裝置」。</li><li><b>解密用的金鑰</b>：新版 Chrome 多加的那層加密也擋不住。</li><li><b>28 種加密貨幣錢包擴充功能</b>（MetaMask、Phantom 等）的資料。</li></ul>
 </section>
 <section class="ch" id="fix" data-kind="content">
 <h2>中了之後的處理</h2>
