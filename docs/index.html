@@ -420,10 +420,11 @@ li{margin:4px 0}
 #side ~ main{margin-left:var(--pdl-side-w)}
 @media (max-width:920px){#side{width:auto} #side ~ main{margin-left:0}}
 </style>
-<meta name="carrier-stamp" content="{&quot;body_sha256&quot;: &quot;4e1eeebd69542f8a67e471cd51584661a83ec6e90e5d0fe522943179d5cb2f19&quot;, &quot;built_at&quot;: &quot;2026-11-04T12:16:35Z&quot;, &quot;carrier&quot;: &quot;html-explainer&quot;, &quot;content_sha256&quot;: &quot;cc69ae66cce161436f1cd7a70066566c9590df5e7709c1fb3dd56483da11e549&quot;, &quot;schema&quot;: &quot;explainer/2&quot;, &quot;version&quot;: 11}">
+<meta name="carrier-stamp" content="{&quot;body_sha256&quot;: &quot;1a6403d6f1b3553e6b6e5122ee4bce9b4a4b2fd373ae5df490ca030bff2a01b0&quot;, &quot;built_at&quot;: &quot;2026-11-04T12:24:59Z&quot;, &quot;carrier&quot;: &quot;html-explainer&quot;, &quot;content_sha256&quot;: &quot;cb73288586bc80b614e38680ade0b0ca1df532322cbb43a1bf31ac2c8c947ad3&quot;, &quot;schema&quot;: &quot;explainer/2&quot;, &quot;version&quot;: 11}">
 </head>
 <body>
 <nav id="side" aria-label="章節導覽"><h1>NIKKE 啟動器木馬：自我檢查與處理</h1><div class="sub">一分鐘查出有沒有中，中了照順序處理</div>
+<a class="l1" href="#deltaforce" data-sec>三角洲玩家看這裡</a>
 <a class="l1" href="#who" data-sec>你需要檢查嗎</a>
 <a class="l1" href="#check" data-sec>三個步驟檢查</a>
 <a class="l1" href="#verdict" data-sec>結果怎麼看</a>
@@ -435,19 +436,26 @@ li{margin:4px 0}
 <a class="l1" href="#x_glossary" data-sec>詞彙</a>
 <a class="l1" href="#x_refs" data-sec>出處</a>
 </nav>
-<main data-sections="who,check,verdict,fix,noreinstall,reopen,limits">
+<main data-sections="deltaforce,who,check,verdict,fix,noreinstall,reopen,limits">
 <header class="pagehead">
 <div class="eyebrow">2026-11-04</div>
 <h1 class="title">NIKKE 啟動器木馬：自我檢查與處理</h1>
 <p class="lead">一分鐘查出有沒有中，中了照順序處理</p>
 </header>
 <div class="box def"><span class="tag">閱讀目的</span>看完之後你知道：自己有沒有中、中了先做什麼、什麼時候可以再打開啟動器。</div>
+<section class="ch" id="deltaforce" data-kind="content">
+<h2>三角洲玩家看這裡</h2>
+<div class="chsub">台港澳的三角洲（Garena 代理版）目前看來不受影響；想安心可以掃一次。</div>
+<p>這次被竄改的是 Level Infinite 自家 <span class="sym" tabindex="0" data-key="CDN">CDN</span> 上的檔案。台港澳玩的三角洲是 Garena 代理版，用的是 Garena 自己的 <span class="sym" tabindex="0" data-key="啟動器">啟動器</span>，裡面的公告和網頁來自 Garena 的網站，不經過那台伺服器。</p>
+<p>我用自己電腦上的 Garena 版啟動器實測（8 月安裝，9 月 9 日最後一次開啟）：啟動器的紀錄、網頁快取和程式檔裡，都找不到被竄改的網址、那 4 個檔案，也沒有木馬痕跡。網路上流傳的受影響清單，講的是三角洲 <b>國際版和 Steam 版</b>；我在台灣不開 VPN 的情況下，找得到的只有 Garena 版，Steam 版找不到。</p>
+<div class="box src" data-kind="note"><span class="tag">還沒驗證到的部分</span>9 月 27 日之後更新的 Garena 版啟動器我沒有測（沒更新，以免冒險），它當時載入網頁的網址現在也查不到了，沒辦法從網路上比對。國際版和 Steam 版找不到可以實測的版本。所以這是「目前看來」，不是保證。</div>
+</section>
 <section class="ch" id="who" data-kind="content">
 <h2>你需要檢查嗎</h2>
 <div class="chsub">9 月 27 日之後在電腦上開過啟動器，就建議檢查。</div>
 <p>2026 年 9 月底到 11 月初，官方 <span class="sym" tabindex="0" data-key="CDN">CDN</span> 上有 4 個檔案被攻擊者竄改。<span class="sym" tabindex="0" data-key="啟動器">啟動器</span> 一打開就會自動載入它們，部分玩家因此被裝上遠端控制 <span class="sym" tabindex="0" data-key="木馬">木馬</span>。它會偷瀏覽器存的密碼和登入狀態、NIKKE 帳密、各種金鑰，以及加密貨幣錢包。</p>
 <p>只要 9 月 27 日之後在 <b>電腦</b> 上打開過啟動器，國際版、港澳台版、日版都算，Steam Deck 和 Linux 也算，就建議檢查。只玩手機版的話，目前沒有出事的回報。</p>
-<div class="box src" data-kind="note"><span class="tag">其他遊戲也會中嗎？</span>網路上流傳一份清單，說三角洲、PUBG、王者榮耀國際版、暗區突圍等同一家發行商的電腦版也中了，但到目前為止 <b>沒有證實</b>：沒有人拿出那些遊戲的中毒紀錄。我用自己電腦上 9 月版的三角洲 Garena 版啟動器實測，它從來沒載入被竄改的檔案；這不能代表 Steam 版、國際版或 9 月 27 日之後的版本。擔心的話，檢查工具也認得三角洲 Garena 版；其他遊戲可以照下一節最後一段，指定那個遊戲的啟動器資料夾再跑一次。瀏覽器後門那部分不管玩哪款遊戲都會查。</div>
+<div class="box src" data-kind="note"><span class="tag">其他遊戲也會中嗎？</span>網路上流傳一份清單，說 PUBG、王者榮耀國際版、暗區突圍等同一家發行商的電腦版也中了，但到目前為止 <b>沒有證實</b>。台港澳的三角洲看 <a href="#deltaforce">三角洲玩家看這裡</a>。其他遊戲可以照下一節最後一段，指定那個遊戲的啟動器資料夾再跑一次；瀏覽器後門那部分不管玩哪款遊戲都會查。</div>
 <div class="box warn" data-kind="warn"><span class="tag">先做這件事</span>檢查和處理完之前，不要再打開電腦版啟動器。</div>
 </section>
 <section class="ch" id="check" data-kind="content">
@@ -511,7 +519,7 @@ li{margin:4px 0}
 <div id="pins" aria-label="釘選的預覽卡片"></div>
 <button id="backpill" type="button">↩ 返回（Backspace）</button>
 <script type="application/json" id="previews">{}</script>
-<script type="application/json" id="rail-data">{"who":{"s":"9 月 27 日之後在電腦上開過啟動器，就建議檢查。","t":["只玩手機版：目前沒有出事回報","檢查完之前先別開電腦版"]},"check":{"s":"下載、打開終端機、貼一行，再看最後一行結果。只讀檔案，不改任何東西。"},"verdict":{"s":"四種結果；紅字分第 1、第 2 階段。","t":["看到階段 2：處理完前 Chrome 不要登入任何帳號"]},"fix":{"s":"先用手機換密碼，再用處理工具清掉元件。","t":["換密碼工具做不到，要你自己來","處理工具只搬不刪"]},"noreinstall":{"s":"重灌最保險；不能重灌就跑後門掃描，再做 Defender 完整掃描。"},"reopen":{"s":"不必只信官方說法：自己比對 4 個檔案的指紋。","t":["4 個都乾淨才算","隔幾小時多查幾次"]},"limits":{"s":"只找已知痕跡；處理只搬不刪；不是官方工具。"}}</script>
+<script type="application/json" id="rail-data">{"deltaforce":{"s":"台港澳的三角洲（Garena 代理版）目前看來不受影響；想安心可以掃一次。","t":["Garena 版不經過這次被竄改的伺服器","想確認：照 三個步驟檢查 跑，工具會自動找到"]},"who":{"s":"9 月 27 日之後在電腦上開過啟動器，就建議檢查。","t":["只玩手機版：目前沒有出事回報","檢查完之前先別開電腦版"]},"check":{"s":"下載、打開終端機、貼一行，再看最後一行結果。只讀檔案，不改任何東西。"},"verdict":{"s":"四種結果；紅字分第 1、第 2 階段。","t":["看到階段 2：處理完前 Chrome 不要登入任何帳號"]},"fix":{"s":"先用手機換密碼，再用處理工具清掉元件。","t":["換密碼工具做不到，要你自己來","處理工具只搬不刪"]},"noreinstall":{"s":"重灌最保險；不能重灌就跑後門掃描，再做 Defender 完整掃描。"},"reopen":{"s":"不必只信官方說法：自己比對 4 個檔案的指紋。","t":["4 個都乾淨才算","隔幾小時多查幾次"]},"limits":{"s":"只找已知痕跡；處理只搬不刪；不是官方工具。"}}</script>
 <script>window.SITE_REFS = {"MotherSphere 技術整理":{"t":"MotherSphere 技術整理","d":"完整的痕跡清單、時間線與移除順序。","s":"#r_gist","n":true},"WormW 樣本分析":{"t":"WormW 樣本分析","d":"木馬本體的行為分析與偵測規則。","s":"#r_wormw","n":true},"巴哈姆特整理文":{"t":"巴哈姆特整理文","d":"中文懶人包與判斷標準。","s":"#r_baha","n":true},"工具原始碼":{"t":"工具原始碼","d":"四支 PowerShell 腳本，下載前可以先看內容。","s":"#r_repo","n":true}};
 window.SITE_SYMS = {"啟動器":{"t":"啟動器 — launcher","d":"電腦版 NIKKE 開遊戲前出現的那個視窗。它會從網路載入公告和網頁，這次出事的就是它載入的程式。","s":"#g_launcher","n":true},"CDN":{"t":"CDN — content delivery network","d":"官方用來把檔案發到世界各地的伺服器群。各地有很多節點，你連到的不一定是同一台。","s":"#g_cdn","n":true},"木馬":{"t":"木馬 — remote access trojan","d":"讓攻擊者可以遠端操作你電腦的程式：執行指令、截圖、偷存在電腦裡的密碼和金鑰。","s":"#g_trojan","n":true},"檔案指紋":{"t":"檔案指紋 — ETag","d":"伺服器給每個檔案版本的一串代號。檔案內容一變，代號就跟著變，所以可以拿來比對是不是乾淨的版本。","s":"#g_etag","n":true},"隔離資料夾":{"t":"隔離資料夾 — quarantine folder","d":"處理工具把可疑檔案搬去的地方，在你的使用者資料夾底下。東西沒有被刪掉，只是搬走並改名，不會再被載入。","s":"#g_quarantine","n":true},"終端機":{"t":"終端機 — PowerShell","d":"Windows 內建輸入指令的視窗。在開始按鈕上按右鍵，選「終端機」或「Windows PowerShell」就會打開。","s":"#g_terminal","n":true}};</script>
 <script>

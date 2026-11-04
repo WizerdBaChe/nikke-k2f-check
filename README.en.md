@@ -10,11 +10,20 @@ English · [中文](README.md)
 
 [Player guide (zh-TW)](https://wizerdbache.github.io/nikke-k2f-check/) · [Quick start](#quick-start) · [Reading the verdict](#reading-the-verdict) · [Facts and sources](docs/FACTS.md) · [Developer doc](docs/DEVELOPER.md) · [For AI agents](AGENTS.md)
 
-![First screen of the player guide: chapter list on the left, the title and the first section on the right (labels in Traditional Chinese)](docs/assets/hero.png)
+![First screen of the player guide: chapter list on the left, the title and the first section, for Delta Force players, on the right (labels in Traditional Chinese)](docs/assets/hero.png)
 
 </div>
 
 *Image labels are in Traditional Chinese; the player guide is written for Traditional Chinese readers.*
+
+## Delta Force players: read this first
+
+> **Delta Force in Taiwan, Hong Kong and Macau (the Garena edition) does not appear to be affected.** To be sure, run the [quick start](#quick-start); the checker finds the Garena launcher on its own.
+
+- The tampered files sat on Level Infinite's own CDN. The Garena edition uses Garena's launcher, whose web content comes from Garena's sites, not from that CDN.
+- The author checked their own Garena launcher (installed in August, last opened 09-09): its logs, web cache and binaries contain none of the tampered URLs, the 4 files or any K2F indicator.
+- The circulating list of affected games refers to Delta Force **global / Steam**. From Taiwan without a VPN the author could only find the Garena edition, not the Steam one.
+- Not verified: Garena launcher builds after 09-27 (the author did not update, to avoid the risk; the web host it used no longer resolves, so it cannot be compared online), and the global / Steam builds (none available to test).
 
 ## What happened
 
@@ -98,7 +107,7 @@ flowchart TD
 ## Limits
 
 - Known indicators only; the RAT could run arbitrary commands, so a reinstall remains the safest option.
-- **Other games**: claims that Delta Force, PUBG, Honor of Kings global and other Level Infinite titles were hit are **unconfirmed**. The author checked their own Delta Force Garena launcher (September build): it never loaded the tampered files, which says nothing about the Steam/global builds or anything after 09-27. The checker also recognises the Delta Force Garena layout; for other games pass the launcher folder with `-InstallPath`. See [docs/FACTS.md](docs/FACTS.md#其他遊戲未證實).
+- **Other games**: claims that Delta Force global / Steam, PUBG, Honor of Kings global and other Level Infinite titles were hit are **unconfirmed**. For the Delta Force Garena edition see [Delta Force players](#delta-force-players-read-this-first). For other games pass the launcher folder with `-InstallPath`. See [docs/FACTS.md](docs/FACTS.md#其他遊戲未證實).
 - Stage 2 (HKCU, `%LOCALAPPDATA%`) is only reliable from your own PowerShell window; some sandboxed app terminals virtualize those locations.
 - Windows Defender may flag the downloaded ZIP (usually a `!ml` machine-learning name such as `Trojan:Script/Wacatac.B!ml`). The code is public for inspection; do not turn off your antivirus for it, report the false positive through Microsoft's file submission page instead. See [docs/FACTS.md](docs/FACTS.md#防毒誤報).
 - Not an official tool. Details: [docs/DEVELOPER.md](docs/DEVELOPER.md#限制).

@@ -79,6 +79,8 @@ M：HSTS 雜湊是 Chromium 的算法：主機名稱轉成 DNS 線路格式（�
 - 社群說法：PUBG、三角洲、王者榮耀國際版、暗區突圍、沙丘：覺醒、帝國時代 Mobile、黎明覺醒等 Level Infinite 發行的 PC 版也中了 — N（未證實）
 - 支持這說法的線索：被竄改的 `aegis-fix.min.js` 放在 `sg-gpts.playerinfinite.com/comm/assets/lib/`，路徑看起來是共用的；另外 3 個檔案有 2 個在 `nikke_launcher/` 路徑下 — G（路徑），推論
 - 反證（只限一台電腦、一個版本）：三角洲 **Garena 版**啟動器（2026-08 安裝，最後開啟 2026-09-09，早於竄改開始的 09-27）的網頁內容全部來自 `launcher.jupiterlauncher.com` 和 Garena 網域，`debug.log`、`%APPDATA%\df_garena_launcher*` 都沒有出現 `playerinfinite`、`insightjs` 或 `k2f` — M2。這不能代表 Steam 版或國際版，也不能代表 09-27 之後的版本
+- 三角洲 Garena 版的補充實測（2026-11-04）：啟動器程式檔裡唯一的 Level Infinite 字樣是登入元件中的 `www.levelinfinite.com`，整個安裝資料夾與 `%APPDATA%\df_garena_launcher*` 找不到 `sg-gpts`、`webassets.playerinfinite`、`aegis-fix`、`vue-bucket` — M2
+- 無法驗證的部分：它當時載入網頁的 `launcher.jupiterlauncher.com` 在 2026-11-04 已查不到 DNS，所以無法比對目前的線上版本；作者在台灣不開 VPN 時只找得到 Garena 版，找不到三角洲 Steam 版，沒有樣本可測 — M2
 - 腳本的做法：`Check-K2F.ps1` 也認得三角洲 Garena 版的資料夾結構（`launcher\service\debug.log`、`%APPDATA%\df_garena_launcher*`），並掃描所有含 `tbs_cache` 的 `%APPDATA%` 資料夾。用的痕跡和妮姬相同，前提是同一隻木馬；其他遊戲目前沒有任何公開樣本
 - `Remediate-K2F.ps1`：妮姬的啟動器快取一律隔離；其他啟動器的快取只有找到 `insightjs` 或 `k2f.agent.state` 時才隔離
 
