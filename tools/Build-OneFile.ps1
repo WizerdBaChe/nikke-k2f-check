@@ -1,8 +1,8 @@
 ﻿<#
 .SYNOPSIS
   Builds dist\nikke-k2f-check.cmd: one double-clickable file that carries Run-K2F.ps1, Check-K2F.ps1 and
-  Remediate-K2F.ps1 (base64, each with its SHA-256), writes them to %TEMP%\nikke-k2f-check-<stamp>\ and runs
-  Run-K2F.ps1. Nothing is downloaded at run time. The output is pure ASCII with CRLF line endings.
+  Remediate-K2F.ps1 (base64, each with its SHA-256), writes them to a new %TEMP%\nikke-k2f-check-<stamp>-<random>\,
+  re-hashes them from disk and runs Run-K2F.ps1. Nothing is downloaded at run time. The output is pure ASCII with CRLF line endings.
 .PARAMETER Out
   Output path (default dist\nikke-k2f-check.cmd under the repo).
 #>
@@ -29,8 +29,9 @@ $stamp = (Hex $all.ToArray()).Substring(0, 12)
 $boot = @'
 param([string]$Mode)
 $t = [IO.File]::ReadAllText($env:K2F_SELF)
-$dir = Join-Path $env:TEMP 'nikke-k2f-check-@STAMP@'
-New-Item -ItemType Directory -Force -Path $dir | Out-Null
+# A fresh folder per run: a name nobody could prepare in advance.
+$dir = Join-Path $env:TEMP ('nikke-k2f-check-@STAMP@-' + [guid]::NewGuid().ToString('N').Substring(0, 8))
+New-Item -ItemType Directory -Path $dir -ErrorAction Stop | Out-Null
 $ms = [regex]::Matches($t, '(?s)#<K2F-FILE ([A-Za-z0-9._-]+) sha256=([0-9a-f]{64})>\r?\n(.*?)\r?\n#</K2F-FILE>')
 if ($ms.Count -ne @COUNT@) { Write-Host 'This file is damaged (parts missing). Download it again from https://github.com/WizerdBaChe/nikke-k2f-check/releases' -ForegroundColor Red; exit 90 }
 $h = [Security.Cryptography.SHA256]::Create()
@@ -40,7 +41,12 @@ foreach ($m in $ms) {
   if ($got -ne $m.Groups[2].Value) { Write-Host "This file is damaged ($($m.Groups[1].Value) does not match its checksum). Download it again." -ForegroundColor Red; exit 91 }
   [IO.File]::WriteAllBytes((Join-Path $dir $m.Groups[1].Value), $bytes)
 }
-$a = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', (Join-Path $dir 'Run-K2F.ps1'))
+# Read back what is on disk right before running it: the files must still be the ones just verified.
+foreach ($m in $ms) {
+  $got = -join ($h.ComputeHash([IO.File]::ReadAllBytes((Join-Path $dir $m.Groups[1].Value))) | ForEach-Object { $_.ToString('x2') })
+  if ($got -ne $m.Groups[2].Value) { Write-Host "$($m.Groups[1].Value) changed on disk after it was written ($dir). Not running it." -ForegroundColor Red; exit 92 }
+}
+$a =@('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', (Join-Path $dir 'Run-K2F.ps1'))
 if ($Mode -eq 'check') { $a += '-CheckOnly' }
 & (Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe') @a
 exit $LASTEXITCODE

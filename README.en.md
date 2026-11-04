@@ -110,6 +110,7 @@ flowchart TD
 | 中毒，木馬元件仍在 (infected, live) | The agent ran and its components are still present |
 | 曾經中毒，只剩歷史紀錄 (infected, history only) | The agent ran; known components are gone; stolen credentials are still valid |
 | 有接觸，未見木馬啟動 (contact) | The launcher loaded the attacker's script; no agent start seen |
+| 檢查不完整 (incomplete) | Nothing found in what could be read, but some files could not be read (usually the launcher is still open); close it or reboot and run again |
 | 沒發現已知痕跡 (none known) | No known indicator; not a guarantee |
 
 **What does stage 2 (the browser) take?** It is not a separate browser stealer: it is the same remote-access trojan moved into Chrome, so it starts again every time Chrome opens, even after the game is closed or uninstalled, and can do everything it did inside the launcher. On the browser side it reads saved passwords, cookies (live logins that work without the password or 2FA), the decryption key (Chrome's App-Bound Encryption included) and the data of 28 crypto-wallet extensions. Besides changing passwords, sign out of all devices on each site so the stolen logins stop working.

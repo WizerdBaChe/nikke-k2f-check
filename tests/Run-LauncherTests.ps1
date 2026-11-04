@@ -4,7 +4,7 @@
 .DESCRIPTION
   Builds the one-file launcher, then runs both launchers non-interactively (K2F_NOPAUSE=1, stdin from nul).
   L1/L2 run against this PC as it is (smoke: the launcher's exit code must equal Check-K2F.ps1's own).
-  L3 checks the extracted files are byte-identical to the repo files. L4 points TEMP at a fixture holding a
+  L3 checks each run extracts into its own folder and the extracted files are byte-identical to the repo files. L4 points TEMP at a fixture holding a
   k2f-bcreds file: the launcher must report the hit (exit 3) and change nothing without a Y.
   L5/L6 are the negative controls: a damaged copy must refuse to run (exit 91 checksum, 90 missing part).
   Evidence rung: 0 (example tests). Exit code = number of failed assertions.
@@ -43,7 +43,10 @@ try {
 
   Write-Host "`n[L3] extracted files are the repo files"
   $stamp = ([regex]::Match([IO.File]::ReadAllText($one), 'build ([0-9a-f]{12})')).Groups[1].Value
-  $ex = Join-Path $savedTemp "nikke-k2f-check-$stamp"
+  # Each run extracts into its own nikke-k2f-check-<stamp>-<random> folder; L1 and L1b made two.
+  $runs = @(Get-ChildItem -LiteralPath $savedTemp -Directory -Filter "nikke-k2f-check-$stamp-*" | Where-Object { $_.Name -match "^nikke-k2f-check-$stamp-[0-9a-f]{8}$" } | Sort-Object LastWriteTime)
+  Assert ($runs.Count -ge 2) "L3 each run gets its own folder ($($runs.Count) for build $stamp)"
+  $ex = if ($runs) { $runs[-1].FullName } else { '' }
   foreach ($n in 'Run-K2F.ps1', 'Check-K2F.ps1', 'Remediate-K2F.ps1') {
     $a = (Get-FileHash (Join-Path $repo $n)).Hash; $b = (Get-FileHash (Join-Path $ex $n) -ErrorAction SilentlyContinue).Hash
     Assert ($a -eq $b) "L3 $n byte-identical"

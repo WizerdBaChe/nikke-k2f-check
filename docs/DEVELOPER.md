@@ -139,7 +139,18 @@ flowchart LR
 | `tests/Run-LauncherTests.ps1` | 11 項全過：兩個入口的結束碼等於 `Check-K2F.ps1` 自己的；單檔解出的三支腳本與 repo 逐位元組相同；TEMP 放假痕跡時回 3、報告有印到畫面、沒按 Y 不動任何東西；改一個字回 91、少一段回 90 |
 | 開發途中 L4 抓到的回歸 | `Run-K2F.ps1` 原本另開子程序跑檢查，報告被吃進函式回傳值，結束碼變成 0（應為 3）；改成同程序呼叫加 `Out-Host` |
 
-單檔的做法：`tools/Build-OneFile.ps1` 把三支腳本以 base64 加 SHA-256 嵌進一個 ASCII 的 `.cmd`；執行時 PowerShell 讀自己、驗雜湊、寫到 `%TEMP%\nikke-k2f-check-<build>\` 再執行，不連網。發布時把 `dist\nikke-k2f-check.cmd` 上傳到 GitHub Release，檔名固定，README 的 `releases/latest/download/` 連結才會指到最新版。
+2026-11-05 依外部檢閱修三件事（備份失敗照樣刪、讀不到算乾淨、單檔固定解壓路徑）之後：
+
+| 檢查 | 結果 |
+|---|---|
+| `tests/Run-FixtureTests.ps1` 對新版 | 58 項全過 |
+| 新增的 R4、P10/N10 對改版前的兩支腳本 | 5 項失敗：`.reg` 寫不進去時舊版照樣刪掉機碼；`TransportSecurity` 被鎖住時舊版判 clean-known、exit 0（新版判 incomplete、exit 4）；N10 失敗是因為舊版報告沒有 `UnreadableCount` 欄位 |
+| `tests/Run-LauncherTests.ps1` | 12 項全過；新增「每次執行解到不同資料夾」 |
+| 同一輪順手修的 | `Remediate-K2F.ps1` 掃 CLSID 時，沒有 `InprocServer32` 子機碼的項目（大多數）各印一段紅字 PathNotFound；判定不受影響，只是看起來像失敗 |
+
+沒測到的：exit 92（寫入後到執行前檔案被換掉）要在毫秒級的空檔裡改檔，沒做自動測試，只確認了程式路徑。
+
+單檔的做法：`tools/Build-OneFile.ps1` 把三支腳本以 base64 加 SHA-256 嵌進一個 ASCII 的 `.cmd`；執行時 PowerShell 讀自己、驗雜湊、寫到每次新建的 `%TEMP%\nikke-k2f-check-<build>-<隨機 8 碼>\`，執行前再從磁碟讀回來驗一次（對不上回 92），不連網。限制：內嵌雜湊只防檔案損壞，不防有人改過整個 `.cmd`（改的人可以連雜湊一起改），所以 README 請使用者對照 Releases 頁的 SHA-256；另外解出的檔案放在使用者自己的 TEMP，以同一個使用者身分執行的程式仍可能在驗完之後、提權清除之前改掉它們，這一點腳本擋不住。發布時把 `dist\nikke-k2f-check.cmd` 上傳到 GitHub Release，檔名固定，README 的 `releases/latest/download/` 連結才會指到最新版。
 
 跑測試（會在 `%TEMP%` 建假資料夾，結束後刪掉；會暫時建立幾個 HKCU 登錄項並在結束時移除）：
 
