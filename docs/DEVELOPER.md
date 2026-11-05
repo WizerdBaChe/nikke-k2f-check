@@ -7,10 +7,11 @@
 ```text
 nikke-k2f-check/
 ├── Check-K2F.ps1            只讀偵測：第 1／2 階段痕跡、時間線、判定
-├── Remediate-K2F.ps1        處置：預設試跑，-Apply 才動手，一律隔離不刪
+├── Remediate-K2F.ps1        處置：預設試跑，-Apply 才動手；檔案一律隔離不刪（例外：登錄先匯出再刪、hosts、防火牆、結束程序）
+├── K2F-Common.ps1           兩支腳本共用的判斷（路徑、篩選、名單），只有這一份
 ├── Sweep-Persistence.ps1    只讀：木馬活動時段內新增的自動啟動項與未簽章檔案
 ├── Test-CdnFiles.ps1        只送 HEAD：比對 4 個 CDN 檔案的 ETag
-├── Run-K2F.ps1              雙擊流程：檢查 → 有痕跡才問要不要清 → 提權 → 試跑清單 → 再問一次 → 清除 → 重查
+├── Run-K2F.ps1              雙擊流程：檢查 → 有痕跡才問要不要清 → 提權（只跑驗過雜湊的管理員專用複本）→ 試跑清單 → 再問一次 → 清除 → 重查
 ├── Run-Check.cmd            ZIP 版的雙擊入口，呼叫 Run-K2F.ps1（加 check 只檢查）
 ├── README.md / README.en.md
 ├── AGENTS.md                給 AI 代理的事實與步驟
@@ -72,9 +73,12 @@ flowchart LR
 | clean-known | 沒有任何發現，該讀的檔案都讀到了 | 0 |
 
 - 字串比對一律讀位元組（Latin-1 一對一解碼），同時比 ASCII 與 UTF-16LE。原因：leveldb 與 Code Cache 是二進位檔，`Select-String` 在實測機上漏抓 `k2f.agent.state`。
-- 檢查範圍是目前使用者，加上 `-UsersRoot`（預設 `C:\Users`）底下讀得到的每個使用者資料夾：啟動器快取、瀏覽器資料夾、TEMP。其他使用者的 HKCU 登錄要用那個帳號登入再跑。使用者清單的邏輯在 `Check-K2F.ps1` 第 0a 段與 `Remediate-K2F.ps1` 開頭各有一份，要一起改。
-- 找安裝資料夾：`-InstallPath` → 解除安裝登錄（名稱含 NIKKE 或 Delta Force）→ URL protocol 圖示、資料夾裡的 `url_protocol.reg` 或資料夾旁的 `<資料夾名>.reg` → 都找不到真的啟動器時，才搜各磁碟前三層名稱含 NIKKE 或 Delta Force 的資料夾。
-- 啟動器資料夾的判斷：底下有 `intl_service`（妮姬）或 `service\debug.log`（三角洲 Garena 版），本身或 `launcher\` 子資料夾都算。這段在三支腳本各有一份（Check 的 `Resolve-Launchers`、Remediate 的 `Resolve-LauncherDir`、Sweep 的 debug.log 篩選），要一起改。
+- **共用判斷只有一份：`K2F-Common.ps1`**（兩支腳本都 dot-source，單檔版也內嵌）。使用者清單、找安裝資料夾、啟動器資料夾判斷、登錄位置（HKCU 或 `HKU\<SID>`）、COM 劫持規則、瀏覽器清單、dll 篩選（`*.dll*`）與簽章白名單、殘留檔名、hosts 網域、防火牆規則名稱與 IP 都在這裡。改規則只改這個檔，不要在單一腳本裡另寫一份。例外：`Sweep-Persistence.ps1` 仍自己篩 `debug.log`（它不處理系統，只排時間窗）。
+- 檢查範圍是目前使用者，加上 `-UsersRoot`（預設 `C:\Users`）底下讀得到的每個使用者資料夾：啟動器快取、瀏覽器資料夾、TEMP。**讀其他使用者的資料夾需要系統管理員視窗**；讀不到的帳號會列在報告（`SkippedProfiles`）和畫面上，不會默默略過。其他使用者的 HKCU 登錄要用那個帳號登入再跑。
+- 找安裝資料夾：`-InstallPath` → Google Play Games 版固定的 `<磁碟>:\NIKKE_GOOGLE` → URL protocol 圖示、資料夾裡的 `url_protocol.reg` 或資料夾旁的 `<資料夾名>.reg` → 解除安裝登錄（名稱含 NIKKE 或 Delta Force）→ 都找不到真的啟動器時，才搜各磁碟前三層名稱含 NIKKE 或 Delta Force 的資料夾。
+- 啟動器資料夾的判斷：底下有 `intl_service`（妮姬）或 `service\debug.log`（三角洲 Garena 版），本身或 `launcher\` 子資料夾都算（`Resolve-K2FLauncherDir`）。`Remediate` 只拿「認得出來」的啟動器資料夾當結束程序的路徑前綴；`-InstallPath` 給的資料夾認不出來時，只結束已知名稱的啟動器程序，不會把那個資料夾底下的所有程式都結束掉。
+- 「啟動器正在執行」是 INFO，不算接觸：乾淨的電腦開著啟動器也是這樣。
+- 第 2 階段安裝殘留（Chrome `Application` 底下的 `platform_experience_helper.dll.old`、`old-clsid.txt`、`service_util.dll`）：`Check` 報 RED 並印出手動處理方式，`Remediate` 第 3b 步搬到隔離區的 `residue\`（Chrome 裝在 Program Files 時需要系統管理員）。
 - 啟動器網頁快取：`%APPDATA%` 底下名稱是 `nikke_launcher*`，或含有 `tbs_cache` 的資料夾（三角洲 Garena 版是 `df_garena_launcher`）。妮姬以外的遊戲沒有公開樣本，所以 `Remediate` 只在這類快取裡找到 `insightjs` 或 `k2f.agent.state` 時才隔離；妮姬的快取一律隔離。
 - hosts：任何沒被註解、把網域指到 `0.0.0.0`、`127.0.0.1`、`::1`、`::` 的行都算封鎖。防火牆：規則要啟用、連出、封鎖，而且涵蓋兩個 IP 才算；`Remediate` 發現同名規則內容不對會重建。
 - `agent_pass` 不會印出，也不寫進報告。
@@ -120,7 +124,7 @@ flowchart LR
 | 新增的 P9/N9/R3 對改版前的 `main` | 11 項中 6 項失敗：兩個疑似變種的機碼都沒被報（新版報 RED），處理工具沒匯出、沒刪、沒隔離。通過的 5 項是負向案例、試跑不動，以及「算作仍在」（舊版靠 Chrome 資料夾那條規則也會報） |
 | 新版在作者電腦上重跑 | HKCU 兩個登錄視圖共 4,532 個 CLSID 機碼，沒有誤報；clean-known，exit 0；約 20 秒 |
 
-規則細節：檔案在 `PlatformExperienceHelper\<64 碼>` 資料夾就算中毒；只在 `\User Data\` 底下的，檔案沒有有效數位簽章（或檔案已不在）才算，有效簽章的一律不報（N9b 用微軟簽章的 dll 驗證）。處理時先匯出 `.reg` 再刪機碼；dll 若不是第 3 步會處理的 `platform_experience_helper.dll*`，就在第 2 步直接搬到 `com-dll\`（開發途中 R3 抓到「換了檔名的 dll 兩步都不處理」，已修）。`Check-K2F.ps1` 與 `Remediate-K2F.ps1` 各有一份 `Get-SuspectComServer`，內容相同，靠 P9/R3 同一組機碼一起測住。
+規則細節：檔案在 `PlatformExperienceHelper\<64 碼>` 資料夾就算中毒；只在 `\User Data\` 底下的，檔案沒有有效數位簽章（或檔案已不在）才算，有效簽章的一律不報（N9b 用微軟簽章的 dll 驗證）。處理時先匯出 `.reg` 再刪機碼；dll 在 `PlatformExperienceHelper\<64 碼>` 資料夾裡的，由第 3 步整個資料夾搬走（篩選和 `Check` 一樣是 `*.dll*`），其他位置的 dll 在第 2 步直接搬到 `com-dll\`。`Get-SuspectComServer` 只有一份，在 `K2F-Common.ps1`。
 
 第 2 階段的實機證據：本 repo 仍然沒有。外部有一份：X 在一台真的有第 2 階段的電腦上觀察到的行為（見 FACTS）。我們的檢查方向（查 HKCU、查所有程序、不只 chrome.exe）和它一致，但我們的測試仍是人工樣本。
 
@@ -148,9 +152,43 @@ flowchart LR
 | `tests/Run-LauncherTests.ps1` | 12 項全過；新增「每次執行解到不同資料夾」 |
 | 同一輪順手修的 | `Remediate-K2F.ps1` 掃 CLSID 時，沒有 `InprocServer32` 子機碼的項目（大多數）各印一段紅字 PathNotFound；判定不受影響，只是看起來像失敗 |
 
-沒測到的：exit 92（寫入後到執行前檔案被換掉）要在毫秒級的空檔裡改檔，沒做自動測試，只確認了程式路徑。
+沒測到的：exit 92（寫入後到執行前檔案被換掉）要在毫秒級的空檔裡改檔，沒做自動測試，只確認了程式路徑。（2026-11-05 第二輪：提權那一半的 92 已有自動測試 L8，見下方「外部審查」。）
 
-單檔的做法：`tools/Build-OneFile.ps1` 把三支腳本以 base64 加 SHA-256 嵌進一個 ASCII 的 `.cmd`；執行時 PowerShell 讀自己、驗雜湊、寫到每次新建的 `%TEMP%\nikke-k2f-check-<build>-<隨機 8 碼>\`，執行前再從磁碟讀回來驗一次（對不上回 92），不連網。限制：內嵌雜湊只防檔案損壞，不防有人改過整個 `.cmd`（改的人可以連雜湊一起改），所以 README 請使用者對照 Releases 頁的 SHA-256；另外解出的檔案放在使用者自己的 TEMP，以同一個使用者身分執行的程式仍可能在驗完之後、提權清除之前改掉它們，這一點腳本擋不住。發布時把 `dist\nikke-k2f-check.cmd` 上傳到 GitHub Release，檔名固定，README 的 `releases/latest/download/` 連結才會指到最新版。
+## 外部審查（2026-11-05 第二輪）
+
+有人貼來一份對舊版的審查。逐條對照當時的程式碼：
+
+| 審查項目 | 對照結果 | 處理 |
+|---|---|---|
+| 提權後執行使用者可寫資料夾裡的腳本 | 成立（「大家同一個 TEMP 路徑」已過時，32fa126 起是隨機資料夾，但提權那邊仍沒重驗） | 啟動碼複製到只限系統管理員的新資料夾、驗雜湊、只跑複本 |
+| 安裝殘留檔只報不清，清完重查永遠紅 | 成立 | `Remediate` 第 3b 步隔離；`Check` 印手動方式 |
+| `-InstallPath` 給上層資料夾會結束底下所有程序 | 成立 | 只用認得出來的啟動器資料夾當前綴 |
+| 檢查與處理的判斷不一致（dll 篩選、防火牆名稱、hosts 網域數） | 成立 | 抽成 `K2F-Common.ps1` 一份 |
+| 啟動器正在執行就算「接觸」 | 成立 | 改 INFO |
+| UAC 用別的系統管理員密碼時處理錯帳號的 HKCU | 成立 | `-CallerSid` → `HKU\<SID>` |
+| 其他帳號讀不到時默默略過 | 成立 | 報告列出 `SkippedProfiles` 與人數 |
+| `Sweep` 跨年的 debug.log 年份錯 | 成立 | 行的月份大於檔案月份時算前一年 |
+| `Stop-Process`、`Rename-Item` 失敗仍報完成 | 成立 | 加 `-ErrorAction Stop` |
+| 測試檔沒有 BOM，非 UTF-8 系統字碼頁會壞 | 成立（這台 ACP 是 65001 才沒事） | 加 BOM |
+| 文件「不刪除」「涵蓋每個使用者」沒寫例外 | 成立 | README、AGENTS、說明頁補例外與權限 |
+| 封鎖 hosts 後 `displaydns` 仍有快取 | 這台重現不出來（`ipconfig /displaydns` 沒有 insightjs） | 不改；處理時本來就會 `ipconfig /flushdns` |
+
+規則面的回寫：`~/.claude/rules/privileged-remediation.md`（提權只跑驗過的複本、雜湊來源、UAC 限制要寫出來、依 SID 處理、每個發現要有處理方式、判斷只有一份、破壞性動作只對認得出來的東西、確認後才報完成、安全承諾要列例外、嚴重度看證據）。
+
+| 檢查 | 結果 |
+|---|---|
+| `tests/Run-FixtureTests.ps1` 對新版 | 71 項全過 |
+| 同一份測試對改版前的 `main`（ff39ef4） | 7 項失敗。R5 殘留檔：舊版搬走 0 個，新版 2 個；R6：認不出的 `-InstallPath` 底下的程序，舊版結束掉（alive=False），新版留著（alive=True）；P13 啟動器執行中：舊版 exit 1，新版 exit 0；R3 換名 dll 改由第 3 步整夾搬走（新的預期行為） |
+| `tests/Run-LauncherTests.ps1` | 18 項全過。L8：雜湊後換掉 `Remediate-K2F.ps1`，啟動碼拒絕執行（exit 92，被換的程式碼沒跑）；L8c 對照：舊的提權路線（`-File <使用者可寫的 Run-K2F.ps1> -Fix`）跑了被換的檔案；L9：有 `K2F_HASHES` 時以它為準，不以磁碟為準 |
+| `Sweep` 跨年 | 檔案時間 2027-01-02、內含 12/31 一行：舊版排成 2027-12-31（未來），新版 2026-12-31 |
+
+沒有自動測試、列入手動驗收：`%ProgramData%` 資料夾的 ACL 真的只有 Administrators 與 SYSTEM（測試以一般權限跑，`-StageRoot` 會多給目前使用者權限）、UAC 用另一個系統管理員帳號時的 `HKU\<SID>` 路線。
+
+單檔的做法：`tools/Build-OneFile.ps1` 把四支腳本（含 `K2F-Common.ps1`）以 base64 加 SHA-256 嵌進一個 ASCII 的 `.cmd`；執行時 PowerShell 讀自己、驗雜湊、寫到每次新建的 `%TEMP%\nikke-k2f-check-<build>-<隨機 8 碼>\`，執行前再從磁碟讀回來驗一次（對不上回 92），並把內嵌雜湊放進 `K2F_HASHES` 交給 `Run-K2F.ps1`，不連網。內嵌雜湊只防檔案損壞，不防有人改過整個 `.cmd`（改的人可以連雜湊一起改），所以 README 請使用者對照 Releases 頁的 SHA-256。
+
+提權那一半（2026-11-05 起）：系統管理員視窗**不再直接執行 TEMP 裡的腳本**。`Run-K2F.ps1` 產生一段很小的 `-EncodedCommand` 啟動碼，裡面帶著四支腳本預期的 SHA-256（單檔版用內嵌雜湊；repo / ZIP 版用使用者按 Y 當下算的雜湊）。啟動碼在 `%ProgramData%` 建一個新資料夾，ACL 不繼承、只給 Administrators 與 SYSTEM，建好後重讀 ACL 確認；已存在就失敗（exit 93）。接著複製腳本、驗複本雜湊，對不上回 92，只執行複本，結束後刪掉複本。啟動碼也帶上「啟動檢查的帳號」SID（`-CallerSid`）：UAC 時輸入的是別的系統管理員帳號密碼的話，清除會改處理 `HKU\<SID>`，而不是那個系統管理員自己的 HKCU。
+
+限制（也印在畫面上）：UAC 擋不住「已經用同一個使用者身分在跑」的程式。木馬此刻還活著的話，它可以在使用者按 Y 之前就改檔或改畫面；最穩的做法是用另一個系統管理員帳號登入，或在安全模式下清除。發布時把 `dist\nikke-k2f-check.cmd` 上傳到 GitHub Release，檔名固定，README 的 `releases/latest/download/` 連結才會指到最新版。
 
 跑測試（會在 `%TEMP%` 建假資料夾，結束後刪掉；會暫時建立幾個 HKCU 登錄項並在結束時移除）：
 
@@ -170,7 +208,9 @@ A 必驗
 3. 加 `-Apply` 後，隔離資料夾裡有 `nikke_launcher*-tbs_cache` 與 `launcher-logs`；沒有痕跡的其他遊戲快取（例如 `df_garena_launcher`）留在原地。
 4. 處理後重跑 `Check-K2F.ps1`，判定不再是「木馬元件仍在」。
 5. 從 Releases 下載 `nikke-k2f-check.cmd` 後雙擊：瀏覽器與 SmartScreen 的警告照 README 步驟能過，檢查結果出現在最後幾行，視窗等你按 Enter 才關。
-6. 有痕跡時的雙擊流程：第一個 Y 會跳系統管理員確認；新視窗先列出編號總結，第二個 Y 之後才搬東西，最後自動重查一次（自動測試只跑到「沒按 Y 不動」，提權那段沒有自動測試）。
+6. 有痕跡時的雙擊流程：第一個 Y 會跳系統管理員確認；新視窗先列出編號總結，第二個 Y 之後才搬東西，最後自動重查一次（自動測試只跑到「沒按 Y 不動」，真正的 UAC 提權沒有自動測試）。
+7. 提權後的新視窗開著時，到 `%ProgramData%` 找 `nikke-k2f-check-run-<32 碼>`：內容是四支腳本；右鍵「內容 → 安全性」只有 Administrators 與 SYSTEM，「進階」顯示沒有繼承。視窗結束後資料夾消失。
+8. 用一般帳號 A 雙擊、UAC 輸入另一個系統管理員帳號 B 的密碼：新視窗顯示「這個系統管理員視窗屬於另一個帳號」，總結裡的登錄項是 `HKU\<A 的 SID>\...`，不是 `HKCU\...`。
 
 B 體驗
 1. 玩家說明頁在手機寬度下，指令區塊能左右捲動、複製按鈕可用。

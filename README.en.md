@@ -23,9 +23,11 @@ English · [中文](README.md)
 1. If the browser says the file may be harmful, choose Keep.
 2. Double-click it in Downloads. On the blue "Windows protected your PC" screen, click More info → Run anyway.
 3. Read the result in the last lines (30 s to 1 min).
-4. If it finds traces it asks whether to clean up: **change passwords from your phone first**, then type `Y`, accept the administrator prompt, read the numbered summary it shows (launcher caches people often forget, such as `%APPDATA%\nikke_launcher_HMT\tbs_cache`, are listed too), and type `Y` again; afterwards it shows each item as done or failed. Files are moved to a quarantine folder, never deleted, so you can move them back.
+4. If it finds traces it asks whether to clean up: **change passwords from your phone first**, then type `Y`, accept the administrator prompt, read the numbered summary it shows (launcher caches people often forget, such as `%APPDATA%\nikke_launcher_HMT\tbs_cache`, are listed too), and type `Y` again; afterwards it shows each item as done or failed. Files are moved to a quarantine folder, never deleted, so you can move them back. Exceptions, listed under the summary: registry keys (exported to `.reg`, then deleted), hosts block lines, the firewall rule, and stopping launcher processes.
 
-Check only: `nikke-k2f-check.cmd check`. The file carries this repo's three PowerShell scripts (base64, each with its SHA-256), writes them to %TEMP%, verifies them and runs them; **it downloads nothing**. Each release lists the file's SHA-256 on the [Releases](https://github.com/WizerdBaChe/nikke-k2f-check/releases) page.
+If the malware is running right now it runs as you, and the administrator prompt cannot stop it; the stronger route is to sign in with another administrator account or use Safe Mode.
+
+Check only: `nikke-k2f-check.cmd check`. The file carries this repo's four PowerShell scripts (base64, each with its SHA-256), writes them to %TEMP%, verifies them and runs them; for cleanup it copies them into an administrator-only folder, checks the copies against the same embedded SHA-256 and runs only those copies. **It downloads nothing**. Each release lists the file's SHA-256 on the [Releases](https://github.com/WizerdBaChe/nikke-k2f-check/releases) page.
 
 ## Delta Force players: read this first
 
@@ -58,8 +60,8 @@ The second official notice (2026-11-05) gives a timeline and manual steps, promi
 | Script | Does | Changes anything? |
 |---|---|---|
 | `nikke-k2f-check.cmd` (Releases) / `Run-Check.cmd` | Double-click: checks, offers cleanup only on a hit, lists the plan and asks again before acting | Only after two Y answers |
-| `Check-K2F.ps1` | Stage 1 (launcher) and stage 2 (Chrome persistence, other Chromium browsers too, plus renamed suspected variants) indicators for every user profile on the PC, agent timeline, "live components" vs "history only" | Read-only |
-| `Remediate-K2F.ps1` | Stops the launcher, removes the Chrome backdoor, quarantines the launcher cache, blocks domains and IPs | Dry-run by default; `-Apply` acts, moving everything to a quarantine folder (no deletes) |
+| `Check-K2F.ps1` | Stage 1 (launcher) and stage 2 (Chrome persistence, other Chromium browsers too, plus renamed suspected variants) indicators for every user profile on the PC (other accounts need an elevated window; unreadable ones are counted in the report), agent timeline, "live components" vs "history only" | Read-only |
+| `Remediate-K2F.ps1` | Stops the launcher, removes the Chrome backdoor and installer residue, quarantines the launcher cache, blocks domains and IPs | Dry-run by default; `-Apply` acts. Files are moved to quarantine, never deleted; exceptions: registry keys deleted after export, hosts, firewall, stopped processes |
 | `Sweep-Persistence.ps1` | For people who cannot reinstall: autostart points and unsigned files created inside the agent's real active windows | Read-only |
 | `Test-CdnFiles.ps1` | Compares the 4 CDN files' ETags with the known-clean ones before you reopen the launcher | HEAD requests only |
 
@@ -124,7 +126,8 @@ It does not live only in Chrome either: an analysis of a real victim PC found it
 
 - leveldb and Code Cache are binary; `Select-String` missed `k2f.agent.state` on a real infected PC. These scripts search bytes (ASCII and UTF-16LE).
 - Live components and history are separated, so a cleaned PC does not read "infected" forever.
-- Remediation quarantines, never deletes, and never matches processes on an empty path prefix.
+- Remediation quarantines files instead of deleting them (registry keys are exported first), and stops processes by folder only under a launcher folder it recognised.
+- Checker and fixer take every rule from one shared file (`K2F-Common.ps1`), so whatever the check reports the fix handles, and a re-check after cleanup does not stay red.
 - No `irm ... | iex` remote one-liner: remote code loading is exactly what went wrong here.
 
 ## You want... read...

@@ -420,7 +420,7 @@ li{margin:4px 0}
 #side ~ main{margin-left:var(--pdl-side-w)}
 @media (max-width:920px){#side{width:auto} #side ~ main{margin-left:0}}
 </style>
-<meta name="carrier-stamp" content="{&quot;body_sha256&quot;: &quot;cfbd357adba233c715ede598c93bc254b85ad8e2683fd9a30ec0c5bb639c4cac&quot;, &quot;built_at&quot;: &quot;2026-11-05T01:47:33Z&quot;, &quot;carrier&quot;: &quot;html-explainer&quot;, &quot;content_sha256&quot;: &quot;0634771dd49a39a3a55dffb18ab1966458b1f0d5fbd5c75ee4324eb8b4647c31&quot;, &quot;schema&quot;: &quot;explainer/2&quot;, &quot;version&quot;: 11}">
+<meta name="carrier-stamp" content="{&quot;body_sha256&quot;: &quot;e0eb3ec0dd84b8271f00146bac81fa40082d694b02432b5ac9a8c048d2437bd2&quot;, &quot;built_at&quot;: &quot;2026-11-05T03:42:40Z&quot;, &quot;carrier&quot;: &quot;html-explainer&quot;, &quot;content_sha256&quot;: &quot;c28b69df72605c5a2586302838f2237dd2725be2f299d8bdaf93802e49319e63&quot;, &quot;schema&quot;: &quot;explainer/2&quot;, &quot;version&quot;: 11}">
 </head>
 <body>
 <nav id="side" aria-label="章節導覽"><h1>NIKKE 啟動器木馬：自我檢查與處理</h1><div class="sub">一分鐘查出有沒有中，中了照順序處理</div>
@@ -448,8 +448,8 @@ li{margin:4px 0}
 <section class="ch" id="easy" data-kind="content">
 <h2>最簡單：下載一個檔案、雙擊</h2>
 <div class="chsub">下載 nikke-k2f-check.cmd，雙擊，看結果；有痕跡才會問你要不要清除。</div>
-<ol class="steps" role="list"><li><span class="st-t">下載</span><span class="st-d">打開 <span class="ref" tabindex="0" data-key="單一檔案下載">單一檔案下載</span> 的連結（在本頁最下面「出處」裡可以直接點）。瀏覽器說「這類檔案可能有害」的話，選「保留」。</span></li><li><span class="st-t">雙擊</span><span class="st-d">到「下載」資料夾雙擊 nikke-k2f-check.cmd。出現藍色的「Windows 已保護您的電腦」，按「其他資訊」→「仍要執行」。</span></li><li><span class="st-t">看結果</span><span class="st-d">等 30 秒到 1 分鐘，看視窗最後幾行，對照 <a href="#verdict">結果怎麼看</a>。</span></li><li><span class="st-t">要清除的話</span><span class="st-d">有找到痕跡，它會問要不要清除。<b>先用手機換密碼</b>（見 <a href="#fix">中了之後的處理</a>），再輸入 Y。系統管理員視窗按「是」，它會先列出一份編號的「總結」清單（常被忘記的 nikke_launcher_HMT 啟動器快取也在裡面），再問一次 Y 才動手；做完每一項會標成功或失敗。東西只搬到隔離資料夾，不刪除。</span></li></ol>
-<div class="box src" data-kind="note"><span class="tag">這個檔案安全嗎？</span>它裡面就是這套工具的三支程式，打包成文字。執行時把它們放到暫存資料夾、核對沒被改過才跑，<b>不會從網路下載任何東西</b>；沒有回答兩次 Y 就不會改電腦。每一版的 SHA-256 在 <span class="ref" tabindex="0" data-key="各版本與 SHA-256">各版本與 SHA-256</span>，從別人轉傳拿到的檔案請先核對。會用終端機的人，也可以照 <a href="#check">三個步驟檢查</a> 一步一步自己跑。</div>
+<ol class="steps" role="list"><li><span class="st-t">下載</span><span class="st-d">打開 <span class="ref" tabindex="0" data-key="單一檔案下載">單一檔案下載</span> 的連結（在本頁最下面「出處」裡可以直接點）。瀏覽器說「這類檔案可能有害」的話，選「保留」。</span></li><li><span class="st-t">雙擊</span><span class="st-d">到「下載」資料夾雙擊 nikke-k2f-check.cmd。出現藍色的「Windows 已保護您的電腦」，按「其他資訊」→「仍要執行」。</span></li><li><span class="st-t">看結果</span><span class="st-d">等 30 秒到 1 分鐘，看視窗最後幾行，對照 <a href="#verdict">結果怎麼看</a>。</span></li><li><span class="st-t">要清除的話</span><span class="st-d">有找到痕跡，它會問要不要清除。<b>先用手機換密碼</b>（見 <a href="#fix">中了之後的處理</a>），再輸入 Y。系統管理員視窗按「是」，它會先列出一份編號的「總結」清單（常被忘記的 nikke_launcher_HMT 啟動器快取也在裡面），再問一次 Y 才動手；做完每一項會標成功或失敗。檔案只搬到隔離資料夾，不刪除；例外是登錄項（先備份再刪）、hosts 封鎖行、防火牆規則和結束啟動器，總結下方會列出。木馬如果正在執行，系統管理員提示擋不住它；最穩的是用另一個系統管理員帳號登入，或在安全模式下執行。</span></li></ol>
+<div class="box src" data-kind="note"><span class="tag">這個檔案安全嗎？</span>它裡面就是這套工具的四支程式，打包成文字。執行時把它們放到暫存資料夾、核對沒被改過才跑；清除時再複製到只有系統管理員能改的資料夾、再核對一次，只跑那份複本，<b>不會從網路下載任何東西</b>；沒有回答兩次 Y 就不會改電腦。每一版的 SHA-256 在 <span class="ref" tabindex="0" data-key="各版本與 SHA-256">各版本與 SHA-256</span>，從別人轉傳拿到的檔案請先核對。會用終端機的人，也可以照 <a href="#check">三個步驟檢查</a> 一步一步自己跑。</div>
 </section>
 <section class="ch" id="deltaforce" data-kind="content">
 <h2>三角洲玩家看這裡</h2>
@@ -523,7 +523,7 @@ li{margin:4px 0}
 <section class="ch" id="limits" data-kind="content">
 <h2>這套工具做什麼、不做什麼</h2>
 <div class="chsub">只找已知痕跡；處理只搬不刪；不是官方工具。</div>
-<ul><li>檢查只讀不寫；處理時一律搬到隔離資料夾，不刪除。</li><li>妮姬啟動器的快取一律隔離；其他遊戲啟動器（例如三角洲）的快取，只有找到木馬痕跡才會搬，沒找到就不動。</li><li>它只能找 <b>已知</b> 的痕跡。沒找到不等於百分之百安全，所以才有「沒辦法重灌的話」那一節的掃描。</li><li>網路上常見的一鍵檢查用文字搜尋啟動器快取，但那是二進位檔，可能漏抓木馬的狀態紀錄；這套工具改用位元組比對。</li><li>這裡不提供「一行貼上、直接從網路下載並執行」的指令：這次出事，正是因為程式自動載入了網路上的程式碼。下載之後，你可以先打開 .ps1 檔看內容再執行。</li><li>痕跡清單來自 <span class="ref" tabindex="0" data-key="MotherSphere 技術整理">MotherSphere 技術整理</span> 和 <span class="ref" tabindex="0" data-key="WormW 樣本分析">WormW 樣本分析</span>，中文判斷標準參考 <span class="ref" tabindex="0" data-key="巴哈姆特整理文">巴哈姆特整理文</span>。這不是官方工具，也不保證能完全清除。</li></ul>
+<ul><li>檢查只讀不寫；處理時檔案一律搬到隔離資料夾，不刪除（登錄項先備份再刪；hosts、防火牆、結束程序是不可搬的例外）。</li><li>妮姬啟動器的快取一律隔離；其他遊戲啟動器（例如三角洲）的快取，只有找到木馬痕跡才會搬，沒找到就不動。</li><li>它只能找 <b>已知</b> 的痕跡。沒找到不等於百分之百安全，所以才有「沒辦法重灌的話」那一節的掃描。</li><li>網路上常見的一鍵檢查用文字搜尋啟動器快取，但那是二進位檔，可能漏抓木馬的狀態紀錄；這套工具改用位元組比對。</li><li>這裡不提供「一行貼上、直接從網路下載並執行」的指令：這次出事，正是因為程式自動載入了網路上的程式碼。下載之後，你可以先打開 .ps1 檔看內容再執行。</li><li>痕跡清單來自 <span class="ref" tabindex="0" data-key="MotherSphere 技術整理">MotherSphere 技術整理</span> 和 <span class="ref" tabindex="0" data-key="WormW 樣本分析">WormW 樣本分析</span>，中文判斷標準參考 <span class="ref" tabindex="0" data-key="巴哈姆特整理文">巴哈姆特整理文</span>。這不是官方工具，也不保證能完全清除。</li></ul>
 </section>
 <section class="ch" id="x_glossary" data-kind="glossary">
 <h2>詞彙</h2>
