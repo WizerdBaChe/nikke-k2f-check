@@ -3,7 +3,7 @@
 README、說明頁、`docs/DEVELOPER.md` 與四支腳本用到的痕跡、時間與數值都以這份為準。要加一條事實，先加在這裡並附來源，再用到別處。
 
 來源代號：
-- **G** = MotherSphere 技術整理 <https://gist.github.com/MotherSphere/d6c049a09ba8ac3085c51ee9df24a4e5>
+- **G** = MotherSphere 技術整理 <https://gist.github.com/MotherSphere/d6c049a09ba8ac3085c51ee9df24a4e5>（2026-11-05 讀到的是 11-04 23:18 GMT 版）。作者另有 15 種語言的翻譯 gist，例如土耳其文 <https://gist.github.com/MotherSphere/ea6ddc9e5537ebdace5c750bdf1e1f5e>、繁體中文 <https://gist.github.com/MotherSphere/b21b00095e367e208304967c0f081007>；翻譯版內容跟英文版一樣，本清單只引用英文版。作者也出了自己的檢查程式 NIKKE Launcher Check <https://github.com/MotherSphere/NIKKE-Launcher-Check>
 - **W** = WormW 樣本分析 <https://github.com/WormW/nikke_malware_analysis>
 - **B** = 巴哈姆特整理文 <https://m.gamer.com.tw/forum/C.php?bsn=36390&snA=23304>（引用 NGA tid=47843502）
 - **H** = HKEPC 報導（Instagram 轉貼，2026-11-04）
@@ -15,6 +15,10 @@ README、說明頁、`docs/DEVELOPER.md` 與四支腳本用到的痕跡、時間
 - **GM** = Gamemeca 報導 <https://www.gamemeca.com/en/view.php?gid=1782921>（2026-11-04，含 Level Infinite 公告與 Krafton 回應）
 - **S** = PUBG: BATTLEGROUNDS 的 Steam 商店頁 <https://store.steampowered.com/app/578080/>（2026-11-04 讀取）
 - **X** = whykusanagi 的分析與檢查工具 <https://github.com/whykusanagi/nikke_malware>（`docs/ATTACK_CHAIN.md`、`docs/IOCS.md`、`CHANGELOG.md`，2026-11-04 讀取）。作者分析了一台真的有第 2 階段的受害電腦，每項結論自己標 [obs]（在那台電腦上觀察到）、[ext]（引用別人）或 [inf]（推論）；下面引用 X 時照抄它的標記
+- **L** = Level Infinite 官方第二份公告「PC Launcher Security Incident and Follow-Up Measures」與道歉文，@NIKKE_en 於 2026-11-05 發布 <https://x.com/NIKKE_en/status/2118118287318061165>、<https://x.com/NIKKE_en/status/2118116340225732677>。作者讀不到 X 原文，內容取自 IG 的轉述與搜尋摘要；官方時間標 UTC+9，下表換成 UTC+8
+- **IG** = Inven Global 報導 <https://www.invenglobal.com/articles/28158/level-infinite-apologizes-for-nikke-pc-launcher-issue-accepts-reports-of-secondary-damage>（2026-11-05，韓文原文 <https://www.inven.co.kr/webzine/news/?news=322988>）
+- **F** = Fatshark 官方人員在自家論壇的回覆 <https://forums.fatsharkgames.com/t/level-infinite-breach-potential-security-risk/127148>（2026-11-04）
+- **J** = EAA FPS News 報導 <https://fpsjp.net/archives/580606>（2026-11-05，整理三角洲等其他遊戲的說法）
 - **D** = 防毒誤報的網路回報：<https://itch.io/post/14240566>、<https://forum.squareline.io/t/microsoft-defender-claims-trojan-script-wacatac-b-ml-on-installation-file/2681>（使用者回報，非微軟官方文件）
 
 ## 時間線
@@ -22,11 +26,31 @@ README、說明頁、`docs/DEVELOPER.md` 與四支腳本用到的痕跡、時間
 | 日期（UTC+8） | 事件 | 來源 |
 |---|---|---|
 | 2026-09-27 | 過期網域 insightjs.com 被重新註冊；同日 CDN 上的 JS 被竄改 | G, B |
-| 2026-10-23 / 10-24 | 最早有人被裝上木馬（G/B 寫 10/24，H 寫 10/23） | G, B, H |
-| 2026-11-04 01:04–01:21 | CDN 上 3 個檔案被換回 | B |
+| 2026-09-27 09:59 | 官方說法：遊戲服務用的網域 insightjs.com 被第三方挾持 | L |
+| 2026-09-27 14:41–14:42 | 官方說法：啟動器從官方 CDN 下載的 4 個腳本檔被竄改（與 G 查到的 COS `last-modified` 06:41–06:42 GMT 同一時刻） | L, G |
+| 2026-10-23 / 10-24 | 最早有人被裝上木馬（G/B 寫 10/24，H 寫 10/23；G 目前最早一筆是 10-23 16:40 GMT） | G, B, H |
+| 2026-10-30 02:52 | 官方說法：惡意程式開始經由被竄改的腳本發送到玩家電腦。**和社群紀錄衝突**：G 有 10-23、10-24 的木馬啟動紀錄。官方這個時間不能拿來排除 10-30 之前開過啟動器的人 | L；衝突比對 G |
+| 2026-11-04 01:04–01:21 | CDN 上 3 個檔案被換回（官方說法：11-04 01:23 前換回 3 個） | B, L |
 | 2026-11-04 02:31 後 | 攻擊者伺服器停止回應 | B |
 | 2026-11-04 06:26 前 | 部分 CDN 節點仍發送被竄改的 FeedList | B |
-| 2026-11-04 | 官方公告：已在 01:30 左右修復客戶端 | B |
+| 2026-11-04 | 官方第一份公告：已在 01:30 左右修復客戶端 | B |
+| 2026-11-04 11:09 | 官方說法：剩下那個檔案（FeedList）的 CDN 快取已刷新 | L |
+| 2026-11-04 | 啟動器改載入重建過的前端（`nikke.c2f24fe0.js`、`images.64d80e3e.js`、`video-js.c239e58d.js`、`aegis-fix.min.js?t=20261104`、`vue-bucket.min.js?v=20261104`）；`FeedList.feb647c9.js` 網址沒變，所以舊快取仍可能被讀到 | G |
+| 2026-11-05 06:59 | `insightjs.com`、`analytics.insightjs.com` 仍解析到 `89.127.233.127`（經 Google DNS 查詢），所以 hosts 與防火牆封鎖仍要留著 | G |
+| 2026-11-05 | 官方第二份公告與道歉：說明時間線、受影響範圍只有 Windows PC 啟動器（手機版沒有）、手動檢查步驟、準備遊戲內補償、受理二次損害申報 | L, IG |
+| 2026-11-05 07:00 | 官方說法：官方 PC 客戶端啟動時會自動偵測並刪除這次的惡意程式 | L, IG |
+
+## 官方第二份公告（2026-11-05）的內容
+
+- 要檢查的人：2026-09-27 14:41（UTC+8）之後在 Windows 開過 PC 啟動器至少一次的人 — L
+- 手動檢查：先斷網，關掉遊戲、啟動器與 Chrome（含系統匣圖示）；在 `Launcher\intl_service\debug.log` 搜尋 `k2f_chan registered`，有就照指引移除；另列出 `Launcher\log\tinyget\` 裡 205,135 位元組的 `tinyget.<日期>-<時間>.log`、`%APPDATA%\nikke_launcher\tbs_cache`、HKCU 的 CLSID `{E77CC89B-…}` 與 `PlatformExperienceHelper\<64 碼>\platform_experience_helper.dll` — L, IG
+- 移除順序：刪登錄項 → 重開機 → 刪 dll 子資料夾、那個大 tinyget 紀錄與 `tbs_cache`；之後從乾淨的裝置改密碼、撤銷並重發 API 金鑰與權杖，跑完整防毒掃描與 Defender 離線掃描 — L, IG
+- 沒找到 `k2f_chan registered` 也不能完全排除風險 — L, IG
+- 官方客戶端內建的安全檢查：2026-11-05 07:00（UTC+8）起，官方 PC 客戶端啟動時會偵測並刪除這次的惡意程式。IG 說這是客戶端的 ACE 安全功能；搜尋到的官方文字只寫「PC security check」，沒有寫 ACE — L, IG
+- 對本工具的影響：官方自動刪除會把證據一起刪掉。想知道自己有沒有中、中到哪一步，要在重開啟動器**之前**先跑檢查（或先備份 `tbs_cache`）— 推論，和 G 對 Malwarebytes 的同一條提醒一致
+- 補償與申報：準備遊戲內補償（沒有細節）；遊戲損失、外部帳號的二次損害、金錢損失都經官方客服申報 — L, IG
+- 預防措施：加強監控、啟動器外部資源的完整性驗證、啟動器各功能最小權限 — L, IG
+- 公告沒有點名其他遊戲 — IG
 
 ## 被竄改的官方檔案與指紋（ETag）
 
@@ -49,7 +73,8 @@ M：2026-11-04 15:00 前後從台灣連線，4 個檔案都回傳乾淨 ETag。
 
 | 痕跡 | 位置 | 判定 | 來源 |
 |---|---|---|---|
-| `k2f_chan registered` + `adopted`/`resuming <uuid>` + `agent started as <電腦名稱>` | 安裝資料夾 `launcher\intl_service\debug.log` | 三者都有 = 中毒；只有第一行 = 大概率載入失敗 | G, B |
+| `k2f_chan registered` + `adopted`/`resuming <uuid>` + `agent started as <電腦名稱>` | 安裝資料夾 `launcher\intl_service\debug.log` | 三者都有 = 中毒且木馬已拿到 ID。**只有第一行也算中毒**：`k2f_chan` 代表木馬本體已下載並執行，官方公告也以這一行當判準 — G（11-04 23:18 GMT 版）、L。舊說法「只有第一行 = 大概率載入失敗」（G 早期版本、B）已被取代 | G, B, L |
+| `startup failed: EIO: invalid UTF-8 in string`，緊接在 `k2f_chan registered` 後、沒有 `adopted` | 同上 | Windows 使用者名稱含非 ASCII 字元（例如中文）時，木馬的 `sysinfo` 編碼失敗，大概在拿到 ID 前就停了；之後做了什麼不知道。仍照中毒處理 — G（看過程式碼；nikke-check issue #16、#21 回報） | G |
 | `lua downloaded to log\tinyget\...` | 同上 | 下載過木馬 | G |
 | `insight.bundle` | `launcher\log\tinyget\*.log` | 中毒 | G, B |
 | `k2f*.lua`、或開頭為 LuaJIT 位元組 `1B 4C 4A 01` 的檔案 | `launcher\log\tinyget\` | 中毒 | G |
@@ -61,6 +86,14 @@ M：2026-11-04 15:00 前後從台灣連線，4 個檔案都回傳乾淨 ETag。
 | `analytics.insightjs.com`，或它的 HSTS 雜湊 `wxL1BeG57AG6frvPqS7txqpE3NyN0/fSUZHCbEn9NSw=` | `%APPDATA%\nikke_launcher*\tbs_cache\` 裡的 `TransportSecurity`、`Network Persistent State` | 中毒（連過木馬本體下載網域；屬歷史紀錄） | K；雜湊 M 重算 |
 | `insightjs`，或 `insightjs.com` / `insightjs.org` 的 HSTS 雜湊 `JeFWywdZy+3jPC93e3P7ACdJ8liQHB7rH+9VHn7kswg=` / `+EQMCXxbp1N4L3mxYGR66hSUD0cvdir6DDtJBLH3wPk=` | 同上 | 有接觸 | K；雜湊 M 重算 |
 | 安裝位置：`url_protocol.reg` 與 `HKCU\Software\Classes\nikkelauncher(hmt)\DefaultIcon` 寫著 `nikke_launcher.exe` / `nikke_launcher_hmt.exe` 的路徑 | `%APPDATA%\nikke_launcher*\` | 用來找安裝資料夾，不是痕跡 | K, M |
+
+G（11-04 23:18 GMT 版）補充：
+- **Google Play 遊戲版也中了**：安裝在 `C:\NIKKE_GOOGLE`，執行 `Launcher\nikke_launcher_google.exe`，資料在 `%APPDATA%\nikke_launcher_google` — G（nikke-check issue #11 與留言回報）
+- Code Cache 裡的載入器項目（`dd65fa4d61079e7e_0` aegis、`ce2fd3f1007a9fe9_0` images、`1416c638b3830103_0` feedlist、`fd520c7c0f65c2d7_0` vue，每台檔名相同）不含腳本，只有網址鍵、時間戳和短標記（約 200 位元組）；時間戳是那支載入器最後一次執行的時間 — G
+- 啟動器 HTTP 快取（`tbs_cache\Cache\` 的 `data_*`、`f_*`）可能存著被竄改的檔案本身，但是 gzip 壓縮過，直接搜尋文字找不到；要先解開開頭是 `1F 8B 08` 的 gzip 串流，再找 `String.fromCharCode(111,114,103)` — G（Iwassoobsessedwith）
+- Malwarebytes 已把 `tbs_cache` 裡兩種痕跡報成 `Trojan.Loader.K2F`（Code Cache 載入器項目）和 `Trojan.Trace.K2F`（含 `k2f.agent.state` 的 Local Storage 檔）。刪掉它們只刪證據，木馬元件不受影響 — G（DylanChusday 回報）
+- 木馬沒有排程工作、Run 機碼、服務、WMI 或啟動資料夾的程式碼；那些地方若有東西，只可能是攻擊者用 `exec` 另外放的 — G
+- 被竄改的 `aegis-fix.min.js` SHA-256 `04471ccf9f6ebac477ba4ca6b408a56621bccd16118c3112720adb35e6422e3d`（69,731 位元組）；`sg-gpts.playerinfinite.com` 底下也有 images、FeedList、vue-bucket 同路徑的檔案 — G（cliff101）
 
 M：leveldb 與 Code Cache 是二進位檔；`Select-String` 在實測機上搜不到 `k2f.agent.state`，用位元組比對才找到。
 
@@ -96,6 +129,11 @@ M：HSTS 雜湊是 Chromium 的算法：主機名稱轉成 DNS 線路格式（�
 ## 其他遊戲（未證實）
 
 - 社群說法：PUBG、三角洲、王者榮耀國際版、暗區突圍、沙丘：覺醒、帝國時代 Mobile、黎明覺醒等 Level Infinite 發行的 PC 版也中了 — N（未證實）
+- 截至 2026-11-05：除了妮姬，沒有任何遊戲的營運方發公告說自己中了；三角洲、Garena、騰訊、天美都沒有發聲明 — J、L（官方公告沒有點名其他遊戲）。G 寫「沒有已知的其他啟動器載入過那段載入器」，那份「騰訊全系列遊戲都被駭」的清單只能追到一則沒有樣本的 4chan 匿名貼文 — G
+- J 提到的更正：研究者一度把某個檔案當作三角洲也中了的證據，後來更正為騰訊軟體本來就會在三角洲環境裡產生的檔案（就是上面「已撤回」的 `onominan.tmp`，G 在三角洲的 Wine 環境看到 2026-09-20 就有）— J, G
+- 有官方回應的：Fatshark（《戰鎚40K：暗潮》等，騰訊旗下）的官方人員 11-04 回覆：自家啟動器不用騰訊／Level Infinite 的 CDN，不受影響 — F
+- 只有二手說法的：NamuWiki 寫三角洲韓國社群經理表示內部檢查後確認安全，暗區突圍：無限也被宣布不受影響 — 使用者可編輯的 wiki，找不到原始貼文，未證實
+- 三角洲**國服**（中國大陸版，經 WeGame）：2026-11-05 搜尋簡中新聞、論壇與官方管道，找不到任何說國服啟動器中毒的報導、官方公告或論壇實例，也找不到「國服沒事」的官方聲明。中文社群的妮姬整理文提到「僅陸服沒事」是指妮姬，不是三角洲 — 作者 2026-11-05 搜尋；沒有找到 ≠ 證明沒事
 - PUBG 的官方回應：報導中被牽連的是 **PUBG Mobile**；Krafton 表示 PUBG Mobile 只以手機遊戲營運、沒有官方 PC 版，與這次事件無關。Level Infinite 11-04 的公告只說 PC 啟動器的腳本檔可能被第三方竄改，沒有點名其他遊戲 — GM
 - PUBG PC（Steam 版，PUBG: BATTLEGROUNDS）：發行商是 KRAFTON，不是 Level Infinite；商店頁沒有標示第三方啟動器，由 Steam 直接啟動，反作弊是 Krafton 自家的 KSS — S。因此它不經過這次被竄改的 Level Infinite 啟動器網頁資源，判定「應無關」— 推論；沒有實機樣本，作者沒有安裝來測
 - 支持這說法的線索：被竄改的 `aegis-fix.min.js` 放在 `sg-gpts.playerinfinite.com/comm/assets/lib/`，路徑看起來是共用的；另外 3 個檔案有 2 個在 `nikke_launcher/` 路徑下 — G（路徑），推論
@@ -136,3 +174,6 @@ M：HSTS 雜湊是 Chromium 的算法：主機名稱轉成 DNS 線路格式（�
 
 全部清單：瀏覽器密碼與 Session Cookie（Chrome、Edge、Brave、Firefox 等）、NIKKE 帳密（啟動器儲存的）、SSH/GPG/age 金鑰、Git 憑證、環境變數、AI 工具與 MCP 設定及 API 金鑰（Claude Code、Gemini CLI、Cursor 等約 1,790 個路徑）、雲端/CI/套件庫權杖、28 種錢包擴充功能、螢幕截圖；可執行任意 shell 指令（19 種指令，含 `exec`）— G, W, H
 - 補充：Windows 認證管理員 (Credential Manager) 裡存的登入（Wi-Fi、遠端桌面、網路磁碟）也會被讀；Firefox 的密碼檔在啟動器開著時會被整份複製走（dll 只進 Chromium 系程式，但第 1 階段照樣拿得到 Firefox 的東西）— X
+- **和 G 衝突**：G 在 11-04 00:45 GMT 更正：`creds` 指令解的是啟動器存的 NIKKE 帳密，不是認證管理員；讀認證管理員的是 `keyscan`，而且只讀開發工具相關的項目。兩邊說法不同，在有人公開程式碼片段前，Wi-Fi／遠端桌面密碼「會被讀」只算 X 的說法；保守起見仍建議更換 — G, X
+- `browserscan` 的細節：密碼從 Chrome、Edge、Brave、Vivaldi、Opera、Firefox 拿；Cookie 只從 Chromium 系瀏覽器拿（Firefox 只拿 `logins.json` 和 `key4.db`）；Opera 只讀 `Opera Stable` 資料夾，Opera GX 大概被跳過；沒有讀密碼管理器擴充功能的程式。但 `cat`、`download` 指令仍可以把 Firefox Cookie、Opera GX 設定檔、密碼管理器資料整份拿走 — G
+- `creds` 不讀 `%APPDATA%\nikke_launcher_google`，但 `cat`、`download` 能從三個資料夾任一個拿 `last_user.dat` — G
