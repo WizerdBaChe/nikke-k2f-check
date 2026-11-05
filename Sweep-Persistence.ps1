@@ -60,10 +60,13 @@ if ($InstallPath) {
     # The agent lives inside the launcher's web view, so it is active only while the launcher runs.
     # Window = agent start .. last debug.log line of that launcher session (gap > 1 h ends a session),
     # plus 30 min margin; capped at -WindowHours.
-    $year = $dbg.LastWriteTime.Year
+    # Log lines carry no year. The file's last write is the newest line, so a line from a later month than
+    # that belongs to the previous year (a log spanning New Year).
+    $lastWrite = $dbg.LastWriteTime
     $stamps = foreach ($line in (Get-Content -LiteralPath $dbg.FullName)) {
       if ($line -match '^\[(\d{2})(\d{2})/(\d{2})(\d{2})(\d{2})') {
-        $t = Get-Date -Year $year -Month $matches[1] -Day $matches[2] -Hour $matches[3] -Minute $matches[4] -Second $matches[5] -Millisecond 0
+        $year = if ([int]$matches[1] -gt $lastWrite.Month) { $lastWrite.Year - 1 } else { $lastWrite.Year }
+        try { $t = Get-Date -Year $year -Month $matches[1] -Day $matches[2] -Hour $matches[3] -Minute $matches[4] -Second $matches[5] -Millisecond 0 } catch { continue }
         [pscustomobject]@{ T = $t; Agent = ($line -like '*agent started as*') }
       }
     }
