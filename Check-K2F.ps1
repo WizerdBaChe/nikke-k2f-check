@@ -101,6 +101,8 @@ foreach ($A in $dataDirs) {
     if ($t) { foreach ($m in [regex]::Matches(($t -replace '\\\\', '\'), $regExeRx)) { $roots += (Split-Path $m.Value -Parent) } }
   }
 }
+# Google Play Games build installs to a fixed <drive>:\NIKKE_GOOGLE (G 2026-11-04 23:18 GMT).
+foreach ($d in (Get-PSDrive -PSProvider FileSystem).Root) { if (Test-Path -LiteralPath "${d}NIKKE_GOOGLE") { $roots += "${d}NIKKE_GOOGLE" } }
 foreach ($k in 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*',
                'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*',
                'HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*') {
@@ -149,10 +151,14 @@ foreach ($L in $launchers) {
         [void]$timeline.Add([pscustomobject]@{ When = "$($matches[1].Substring(0,2))/$($matches[1].Substring(2,2)) $($matches[2].Substring(0,2)):$($matches[2].Substring(2,2)):$($matches[2].Substring(4,2))"; Event = $evt; Key = '' })
       }
     }
+    $eio = @($lines | Where-Object { $_ -like '*startup failed: EIO*' })
     if ($reg -and $agt) {
       Add-Finding 'RED' '1' "debug.log 有 k2f_chan registered + $($adp.Count) 筆 adopted/resuming + $($agt.Count) 筆 agent started（木馬已啟動）" $f.FullName
     } elseif ($reg) {
-      Add-Finding 'YELLOW' '1' "debug.log 只有 k2f_chan registered，沒有 agent started（大概率載入失敗，仍建議改密碼）" $f.FullName
+      # k2f_chan alone still means the agent was downloaded and ran (G 2026-11-04 23:18 GMT; Level Infinite's
+      # Nov 5 notice uses this line as its criterion). Earlier "probably failed to load" reading is superseded.
+      $why = if ($eio) { "，並有 $($eio.Count) 筆 startup failed: EIO（使用者名稱含非英文字元時木馬會在這裡出錯，之後做了什麼不知道）" } else { '' }
+      Add-Finding 'RED' '1' "debug.log 有 k2f_chan registered，沒有 agent started$why（木馬本體已下載並執行過，照中毒處理）" $f.FullName
     }
   }
   $tg = "$L\log\tinyget"

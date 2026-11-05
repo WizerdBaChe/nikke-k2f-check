@@ -57,6 +57,8 @@ if (-not $InstallPath) {
   foreach ($k in 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*', 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*', 'HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*') {
     Get-ItemProperty $k -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName -match 'NIKKE|Delta Force' -and $_.InstallLocation } | ForEach-Object { $cands += $_.InstallLocation.TrimEnd('\') }
   }
+  # Google Play Games build: fixed <drive>:\NIKKE_GOOGLE, as in Check-K2F.ps1.
+  foreach ($d in (Get-PSDrive -PSProvider FileSystem).Root) { if (Test-Path -LiteralPath "${d}NIKKE_GOOGLE") { $cands += "${d}NIKKE_GOOGLE" } }
   # Launcher URL protocol icon and url_protocol.reg, as in Check-K2F.ps1.
   $exeRx = '[A-Za-z]:\\[^"\r\n]*?\\nikke_launcher[^"\\\r\n]*\.exe'
   foreach ($p in 'nikkelauncher', 'nikkelauncherhmt') {
@@ -114,7 +116,7 @@ $procs = @()
 if ($L -and $L.Length -gt 3) {
   $procs += @(Get-Process -ErrorAction SilentlyContinue | Where-Object { $_.Path -and $_.Path.StartsWith($L + '\', [StringComparison]::OrdinalIgnoreCase) })
 }
-$procs += @(Get-Process -Name tbs_browser, INTLWebViewHelper, intl_service, nikke_launcher, nikke_launcher_hmt, df_garena_launcher -ErrorAction SilentlyContinue)
+$procs += @(Get-Process -Name tbs_browser, INTLWebViewHelper, intl_service, nikke_launcher, nikke_launcher_hmt, nikke_launcher_google, df_garena_launcher -ErrorAction SilentlyContinue)
 $procs = $procs | Sort-Object Id -Unique
 if ($procs) { foreach ($p in $procs) { Do-It "停止 $($p.Name) (PID $($p.Id))" { Stop-Process -Id $p.Id -Force } } } else { Write-Host '  沒有執行中的啟動器程序' }
 

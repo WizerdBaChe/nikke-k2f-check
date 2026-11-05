@@ -183,6 +183,17 @@ try {
   Assert (@($r.Report.Launchers) -contains (Split-Path $c.Install)) 'N8 clean Delta Force launcher still recognised'
   Assert ($r.Findings.Count -eq 0 -and $r.Code -eq 0) 'N8 clean Delta Force logs not flagged'
 
+  Write-Host "`n[P11/P11b] k2f_chan registered without agent started counts as infected (history)"
+  $c = New-Case 'p11'
+  $dbg11 = New-File "$($c.Install)\debug.log" "[1104/010203.000:INFO:CONSOLE(1)] `"k2f_chan registered`", source: (1)`r`n"
+  $r = Invoke-Check $c
+  Assert (Has-Finding $r 'RED' $dbg11) 'P11 RED for k2f_chan registered alone'
+  Assert ($r.Report.Verdict -eq 'infected-history' -and $r.Code -eq 2) "P11 verdict infected-history, exit 2; before 2026-11-05 contact, exit 1 (got $($r.Report.Verdict), $($r.Code))"
+  $c = New-Case 'p11b'
+  $dbg11b = New-File "$($c.Install)\debug.log" "[1104/010203.000:INFO:CONSOLE(1)] `"k2f_chan registered`", source: (1)`r`n[1104/010203.500:INFO:CONSOLE(1)] `"startup failed: EIO: invalid UTF-8 in string`", source: (1)`r`n"
+  $r = Invoke-Check $c
+  Assert (@($r.Findings | Where-Object { $_.Level -eq 'RED' -and $_.Where -eq $dbg11b -and $_.What -like '*EIO*' }).Count -eq 1) 'P11b RED names the EIO launch'
+
   Write-Host "`n[R1] Remediate -Apply on fixture: other user's cache, Edge dll, temp"
   $c = New-Case 'r1'
   $edge = New-File "$($c.Other)\Microsoft\Edge\User Data\PlatformExperienceHelper\$hex\platform_experience_helper.dll" ('MZ' + ('x' * 100))
