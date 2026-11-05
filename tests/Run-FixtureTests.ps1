@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
   Fixture tests for Check-K2F.ps1 and Remediate-K2F.ps1. Each check gets a positive and a negative case.
 .DESCRIPTION
@@ -63,9 +63,9 @@ function Invoke-Check($case, [switch]$NoInstall) {
   $r = Get-Content -LiteralPath $case.Report -Raw -Encoding UTF8 | ConvertFrom-Json
   [pscustomobject]@{ Code = $code; Report = $r; Out = $out; Findings = @($r.Findings) }
 }
-function Invoke-Remediate($case, [switch]$Apply) {
+function Invoke-Remediate($case, [switch]$Apply, [string]$InstallPath = (Split-Path (Split-Path $case.Install))) {
   $env:APPDATA = $case.Roaming; $env:LOCALAPPDATA = $case.Local; $env:TEMP = $case.Temp; $env:TMP = $case.Temp
-  $a = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $remed, '-InstallPath', (Split-Path (Split-Path $case.Install)), '-Quarantine', "$($case.Dir)\quarantine")
+  $a = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $remed, '-InstallPath', $InstallPath, '-Quarantine', "$($case.Dir)\quarantine")
   if ($remedParams -contains 'UsersRoot') { $a += @('-UsersRoot', $case.Users) }
   if ($Apply) { $a += '-Apply' }
   $ErrorActionPreference = 'Continue'
@@ -255,7 +255,8 @@ try {
   Assert ((Test-Path $genKeys.N9) -and (Test-Path $genKeys.N9b)) 'R3 apply: benign keys kept'
   Assert ((Test-Path "$q\hkcu-clsid-$($genIds.P9.Trim('{}')).reg") -and (Test-Path "$q\hkcu-wow6432node-clsid-$($genIds.P9b.Trim('{}')).reg")) 'R3 apply: both keys exported before removal'
   Assert (-not (Test-Path $udDll) -and (Test-Path "$q\com-dll\$($genIds.P9b.Trim('{}'))-helper.dll.quarantined")) 'R3 apply: User Data dll moved to quarantine'
-  Assert (-not (Test-Path $pehDll) -and (Test-Path "$q\com-dll\$($genIds.P9.Trim('{}'))-other_name.dll.quarantined") -and (Test-Path $okDll)) 'R3 apply: renamed dll in a 64-hex folder moved by step 2, signed dll untouched'
+  # The shared *.dll* filter (K2F-Common.ps1) makes step 3 move the whole 64-hex folder, so step 2 leaves it to step 3.
+  Assert (-not (Test-Path $pehDll) -and @(Get-ChildItem "$q\peh" -Recurse -File -Filter 'other_name.dll.quarantined' -ErrorAction SilentlyContinue).Count -eq 1 -and (Test-Path $okDll)) 'R3 apply: renamed dll in a 64-hex folder moved with its folder by step 3, signed dll untouched'
 
   Write-Host "`n[R4] .reg backup fails: the key must stay (R3 above is the same key with a working backup, removed)"
   $c = New-Case 'r4'
@@ -277,6 +278,53 @@ try {
   Assert (@($r.Report.Unreadable) -contains $ts) 'P10 the locked file is listed as unreadable'
   $r = Invoke-Check $c
   Assert ($r.Report.Verdict -eq 'clean-known' -and $r.Code -eq 0 -and $r.Report.UnreadableCount -eq 0) "N10 same file unlocked: clean-known, exit 0 (got $($r.Report.Verdict), $($r.Code))"
+
+  Write-Host "`n[P12/N12/R5] installer residue next to Chrome: the checker flags it and the fixer moves it"
+  $c = New-Case 'p12'
+  $app = New-Dir "$($c.Local)\Google\Chrome\Application"
+  $res1 = New-File "$app\140.0.0.0\old-clsid.txt" $clsid
+  $res2 = New-File "$app\platform_experience_helper.dll.old" ('MZ' + ('x' * 100))
+  $keep = New-File "$app\140.0.0.0\chrome_elf.dll" ('MZ' + ('x' * 100))
+  $r = Invoke-Check $c
+  Assert ((Has-Finding $r 'RED' $res1) -and (Has-Finding $r 'RED' $res2)) 'P12 RED for old-clsid.txt and platform_experience_helper.dll.old'
+  Assert (@($r.Findings | Where-Object { $_.Where -eq $keep }).Count -eq 0) 'N12 other files in Chrome\Application not flagged'
+  $o = Invoke-Remediate $c -Apply
+  $q = "$($c.Dir)\quarantine"
+  $moved = @(Get-ChildItem "$q\residue" -File -ErrorAction SilentlyContinue).Count
+  Assert (-not (Test-Path $res1) -and -not (Test-Path $res2) -and $moved -eq 2) "R5 apply: both residue files moved to quarantine (moved $moved; before 2026-11-05 nothing moved them)"
+  Assert (Test-Path $keep) 'R5 apply: chrome_elf.dll untouched'
+  $r = Invoke-Check $c
+  Assert (-not (Has-Finding $r 'RED' $res1)) 'R5 re-check after cleanup no longer flags the residue'
+
+  Write-Host "`n[R6/N6] an unrecognised -InstallPath is never used as a kill prefix"
+  $c = New-Case 'r6'
+  $games = New-Dir "$($c.Dir)\games"
+  $other = "$(New-Dir "$games\SomeOtherGame")\othergame.exe"; Copy-Item $ps $other
+  $victim = Start-Process $other -ArgumentList '-NoProfile', '-Command', 'Start-Sleep 120' -PassThru -WindowStyle Hidden
+  Start-Sleep -Milliseconds 800
+  $o = Invoke-Remediate $c -Apply -InstallPath $games
+  $alive = [bool](Get-Process -Id $victim.Id -ErrorAction SilentlyContinue)
+  Assert $alive "R6 process under an unrecognised -InstallPath keeps running (alive=$alive; old build stopped it)"
+  Assert ($o -match '認不出啟動器') 'R6 the unrecognised path is reported'
+  Stop-Process -Id $victim.Id -Force -ErrorAction SilentlyContinue
+  $c = New-Case 'n6'
+  $lp = "$(Split-Path $c.Install)\nikke_launcher_fixture.exe"; Copy-Item $ps $lp
+  $own = Start-Process $lp -ArgumentList '-NoProfile', '-Command', 'Start-Sleep 120' -PassThru -WindowStyle Hidden
+  Start-Sleep -Milliseconds 800
+  $o = Invoke-Remediate $c -Apply
+  Start-Sleep -Milliseconds 500
+  $alive = [bool](Get-Process -Id $own.Id -ErrorAction SilentlyContinue)
+  Assert (-not $alive) "N6 process under a recognised launcher folder is stopped (alive=$alive)"
+  Stop-Process -Id $own.Id -Force -ErrorAction SilentlyContinue
+
+  Write-Host "`n[P13/N13] a running launcher is information, not contact"
+  $c = New-Case 'p13'
+  $tb = "$(New-Dir "$($c.Dir)\bin")\tbs_browser.exe"; Copy-Item $ps $tb
+  $run = Start-Process $tb -ArgumentList '-NoProfile', '-Command', 'Start-Sleep 120' -PassThru -WindowStyle Hidden
+  Start-Sleep -Milliseconds 800
+  try { $r = Invoke-Check $c } finally { Stop-Process -Id $run.Id -Force -ErrorAction SilentlyContinue }
+  Assert (Has-Finding $r 'INFO' 'Get-Process') 'P13 running tbs_browser reported as INFO'
+  Assert ($r.Code -eq 0) "P13 running launcher alone: exit 0 (got $($r.Code); old build: 1 contact)"
 } finally {
   $env:APPDATA = $saved.APPDATA; $env:LOCALAPPDATA = $saved.LOCALAPPDATA; $env:TEMP = $saved.TEMP; $env:TMP = $saved.TMP
   if ($helper) { Stop-Process -Id $helper.Id -Force -ErrorAction SilentlyContinue }

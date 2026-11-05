@@ -2,12 +2,16 @@
 .SYNOPSIS
   Contain the NIKKE launcher K2F malware. Dry-run by default; -Apply to act.
 .DESCRIPTION
-  Nothing is deleted: every artifact is MOVED into a quarantine folder (evidence kept,
-  DLLs renamed so they cannot load). Order follows the published removal sequence:
-    1. stop launcher processes
-    2. export + remove the HKCU COM hijack key, 64- and 32-bit views (never the HKLM one: that is Windows' wpc.dll)
+  No file is deleted: every file artifact is MOVED into a quarantine folder (evidence kept, DLLs renamed so
+  they cannot load). Exceptions: registry keys are deleted after a successful .reg export, hosts gets block
+  lines, a wrong firewall rule of our name is removed and rebuilt, launcher processes are stopped.
+  Selectors (paths, dll filter, residue names, hosts, firewall) come from K2F-Common.ps1, shared with Check-K2F.ps1.
+  Order follows the published removal sequence:
+    1. stop launcher processes (by name, plus processes under a RECOGNISED launcher folder only)
+    2. export + remove the per-user COM hijack key, 64- and 32-bit views (never the HKLM one: that is Windows' wpc.dll)
     3. quarantine PlatformExperienceHelper\<64-hex> folders of Chrome and the other Chromium browsers,
-       for every readable user profile (locked until reboot -> re-run after reboot)
+       for every readable user profile (locked until reboot -> re-run after reboot), and the installer
+       residue next to Chrome (platform_experience_helper.dll.old, old-clsid.txt, service_util.dll)
     4. quarantine launcher web cache tbs_cache (holds tampered JS + agent state), TEMP k2f* files,
        for every readable user profile, and copy the launcher logs as evidence. NIKKE caches always;
        other launchers' caches (e.g. Delta Force Garena) only when they contain an insightjs / k2f indicator
@@ -19,63 +23,27 @@
   Quarantine root. Default %USERPROFILE%\nikke-k2f-quarantine-<timestamp>.
 .PARAMETER UsersRoot
   Folder holding the other user profiles (default C:\Users). Used by tests.
+.PARAMETER UserSid
+  Clean this user's registry (HKU\<SID>) instead of HKCU. Run-K2F.ps1 passes it when the elevated window
+  belongs to a different account than the one that started the check.
 #>
 [CmdletBinding()]
 param(
   [switch]$Apply,
   [string]$InstallPath,
   [string]$Quarantine = (Join-Path $env:USERPROFILE ("nikke-k2f-quarantine-" + (Get-Date -Format 'yyyyMMdd-HHmmss'))),
-  [string]$UsersRoot = "$env:SystemDrive\Users"
+  [string]$UsersRoot = "$env:SystemDrive\Users",
+  [string]$UserSid
 )
 
-# User profiles: current user + every readable profile under -UsersRoot.
-# Same logic as Check-K2F.ps1 section 0a; change both together.
-$profiles = @([pscustomobject]@{ Name = $env:USERNAME; Roaming = $env:APPDATA; Local = $env:LOCALAPPDATA; Temp = $env:TEMP; Current = $true })
-foreach ($u in Get-ChildItem -LiteralPath $UsersRoot -Directory -Force -ErrorAction SilentlyContinue) {
-  if ($u.Name -in 'Public', 'Default', 'Default User', 'All Users') { continue }
-  if ($u.FullName.TrimEnd('\') -ieq "$env:USERPROFILE".TrimEnd('\')) { continue }
-  $loc = Join-Path $u.FullName 'AppData\Local'
-  if (-not (Test-Path -LiteralPath $loc -ErrorAction SilentlyContinue)) { continue }
-  $profiles += [pscustomobject]@{ Name = $u.Name; Roaming = (Join-Path $u.FullName 'AppData\Roaming'); Local = $loc; Temp = (Join-Path $loc 'Temp'); Current = $false }
-}
-
-# Launcher web-view data folders, same rule as Check-K2F.ps1: nikke_launcher* by name, or any folder holding a tbs_cache.
-$dataDirs = @($profiles | ForEach-Object {
-  Get-ChildItem -LiteralPath $_.Roaming -Directory -Force -ErrorAction SilentlyContinue | Where-Object { $_.Name -like 'nikke_launcher*' -or (Test-Path -LiteralPath (Join-Path $_.FullName 'tbs_cache')) }
-})
-# The launcher folder under a root: the root itself or root\launcher, holding intl_service (NIKKE) or service\debug.log (Delta Force Garena).
-function Resolve-LauncherDir([string]$r) {
-  if (-not $r) { return $null }
-  $r = $r.TrimEnd('\')
-  foreach ($c in $r, "$r\launcher") { if ((Test-Path "$c\intl_service") -or (Test-Path "$c\service\debug.log")) { return $c } }
-  return $null
-}
-
-# Find the install the same way Check-K2F.ps1 does when -InstallPath is not given.
+. (Join-Path $PSScriptRoot 'K2F-Common.ps1')
+# User profiles, data folders, the registry hive and install discovery come from K2F-Common.ps1 (same as Check-K2F.ps1).
+$pr = Get-K2FProfiles $UsersRoot
+$profiles = $pr.Profiles
+$hive = Get-K2FUserHive $UserSid
+$dataDirs = Get-K2FDataDirs $profiles
 if (-not $InstallPath) {
-  $cands = @()
-  foreach ($k in 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*', 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*', 'HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*') {
-    Get-ItemProperty $k -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName -match 'NIKKE|Delta Force' -and $_.InstallLocation } | ForEach-Object { $cands += $_.InstallLocation.TrimEnd('\') }
-  }
-  # Google Play Games build: fixed <drive>:\NIKKE_GOOGLE, as in Check-K2F.ps1.
-  foreach ($d in (Get-PSDrive -PSProvider FileSystem).Root) { if (Test-Path -LiteralPath "${d}NIKKE_GOOGLE") { $cands += "${d}NIKKE_GOOGLE" } }
-  # Launcher URL protocol icon and url_protocol.reg, as in Check-K2F.ps1.
-  $exeRx = '[A-Za-z]:\\[^"\r\n]*?\\nikke_launcher[^"\\\r\n]*\.exe'
-  foreach ($p in 'nikkelauncher', 'nikkelauncherhmt') {
-    $v = [string](Get-ItemProperty "HKCU:\Software\Classes\$p\DefaultIcon" -ErrorAction SilentlyContinue).'(default)'
-    if ($v -match $exeRx) { $cands += (Split-Path $matches[0] -Parent) }
-  }
-  $regExeRx = '[A-Za-z]:\\[^"\r\n]*?\\[^"\\\r\n]*launcher[^"\\\r\n]*\.exe'
-  foreach ($A in $dataDirs) {
-    foreach ($rf in (Join-Path $A.FullName 'url_protocol.reg'), "$($A.FullName).reg") {
-      $t = Get-Content -LiteralPath $rf -Raw -ErrorAction SilentlyContinue
-      if ($t) { foreach ($m in [regex]::Matches(($t -replace '\\\\', '\'), $regExeRx)) { $cands += (Split-Path $m.Value -Parent) } }
-    }
-  }
-  if (-not @($cands | Where-Object { Resolve-LauncherDir $_ })) {
-    foreach ($d in (Get-PSDrive -PSProvider FileSystem).Root) { foreach ($g in "$d*NIKKE*", "$d*\*NIKKE*", "$d*\*\*NIKKE*", "$d*Delta Force*", "$d*\*Delta Force*", "$d*\*\*Delta Force*") { Get-Item $g -Force -ErrorAction SilentlyContinue | Where-Object PSIsContainer | ForEach-Object { $cands += $_.FullName } } }
-  }
-  $InstallPath = $cands | Where-Object { Resolve-LauncherDir $_ } | Select-Object -First 1
+  $InstallPath = @(Get-K2FInstallCandidates $dataDirs $hive) | Where-Object { Resolve-K2FLauncherDir $_ } | Select-Object -First 1
   if (-not $InstallPath) { Write-Host '找不到啟動器安裝資料夾，請用 -InstallPath 指定（例：-InstallPath D:\NIKKE）。啟動器紀錄的證據備份會略過。' -ForegroundColor Yellow; $InstallPath = '' }
 }
 
@@ -106,8 +74,12 @@ function Ensure-Dir([string]$p) { if (-not (Test-Path $p)) { New-Item -ItemType 
 
 if (-not $Apply) { Write-Host '試跑模式 (dry-run)：只列出會做的事。確認後加 -Apply 再跑一次。' -ForegroundColor Yellow }
 Write-Host "隔離區：$Quarantine"
+if ($pr.Skipped.Count) { Write-Host "注意：$($pr.Skipped.Count) 個其他使用者的資料夾讀不到（$($pr.Skipped -join ', ')），這次沒處理；要處理請用「系統管理員」視窗再跑。" -ForegroundColor Yellow }
 
-$L = if (-not $InstallPath) { '' } elseif (Resolve-LauncherDir $InstallPath) { Resolve-LauncherDir $InstallPath } else { $InstallPath.TrimEnd('\') }
+# Only a recognised launcher folder is used as a kill prefix: a parent folder passed as -InstallPath would
+# otherwise end every process under it (rules/privileged-remediation.md, recognised-only selectors).
+$L = if ($InstallPath) { Resolve-K2FLauncherDir $InstallPath } else { $null }
+if ($InstallPath -and -not $L) { Write-Host "  -InstallPath $InstallPath 底下認不出啟動器（找不到 intl_service 或 service\debug.log）：不依資料夾結束程序，只結束已知名稱的啟動器程序，也不複製紀錄檔。" -ForegroundColor Yellow }
 
 # 1. processes
 Step '1. 結束啟動器程序'
@@ -116,52 +88,39 @@ $procs = @()
 if ($L -and $L.Length -gt 3) {
   $procs += @(Get-Process -ErrorAction SilentlyContinue | Where-Object { $_.Path -and $_.Path.StartsWith($L + '\', [StringComparison]::OrdinalIgnoreCase) })
 }
-$procs += @(Get-Process -Name tbs_browser, INTLWebViewHelper, intl_service, nikke_launcher, nikke_launcher_hmt, nikke_launcher_google, df_garena_launcher -ErrorAction SilentlyContinue)
+$procs += @(Get-Process -Name $K2F_LauncherProcs -ErrorAction SilentlyContinue)
 $procs = $procs | Sort-Object Id -Unique
-if ($procs) { foreach ($p in $procs) { Do-It "停止 $($p.Name) (PID $($p.Id))" { Stop-Process -Id $p.Id -Force } } } else { Write-Host '  沒有執行中的啟動器程序' }
+if ($procs) { foreach ($p in $procs) { Do-It "停止 $($p.Name) (PID $($p.Id))" { Stop-Process -Id $p.Id -Force -ErrorAction Stop } } } else { Write-Host '  沒有執行中的啟動器程序' }
 
-# 2. HKCU COM hijack
-Step '2. 移除 HKCU COM 劫持登錄項'
-$clsid = '{E77CC89B-7401-4C04-8CED-149DB35ADD04}'
+# 2. per-user COM hijack (HKCU, or HKU\<SID> when the elevated window belongs to another account)
+$H = $hive.Label
+Step "2. 移除 $H COM 劫持登錄項"
+$clsid = $K2F_Clsid
 $foundKey = $false
 foreach ($view in 'CLSID', 'WOW6432Node\CLSID') {   # 64-bit and 32-bit registry views
-  $key = "HKCU\Software\Classes\$view\$clsid"
-  if (-not (Test-Path "HKCU:\Software\Classes\$view\$clsid")) { continue }
+  $key = "$($hive.Reg)\Software\Classes\$view\$clsid"
+  if (-not (Test-Path "$($hive.Ps)\Software\Classes\$view\$clsid")) { continue }
   $foundKey = $true
   $regFile = Join-Path $Quarantine ('hkcu-' + ($view -replace '\\', '-').ToLower() + '.reg')
   Do-It "匯出 $key 到隔離區" { Ensure-Dir $Quarantine; & reg.exe export $key $regFile /y | Out-Null; if ($LASTEXITCODE) { throw "reg export exit $LASTEXITCODE" } }
-  Remove-KeyAfterExport "$key（HKLM 同名項是 Windows 正常的，不動）" "HKCU:\Software\Classes\$view\$clsid"
+  Remove-KeyAfterExport "$key（HKLM 同名項是 Windows 正常的，不動）" "$($hive.Ps)\Software\Classes\$view\$clsid"
 }
-# Generic variant: other HKCU CLSIDs whose in-process server sits where the known dll sits.
-# Same logic in Check-K2F.ps1 (Get-SuspectComServer); change both together.
-function Get-SuspectComServer([string]$Path) {
-  if (-not $Path) { return $null }
-  $p = [Environment]::ExpandEnvironmentVariables($Path.Trim('"'))
-  $dir = Split-Path $p -Parent
-  if ((Split-Path $dir -Leaf) -match '^[0-9a-fA-F]{64}$' -and (Split-Path (Split-Path $dir -Parent) -Leaf) -eq 'PlatformExperienceHelper') {
-    return 'PlatformExperienceHelper\<64 碼> 資料夾'
-  }
-  if ($p -notlike '*\User Data\*') { return $null }
-  if (-not (Test-Path -LiteralPath $p -PathType Leaf)) { return '瀏覽器 User Data 底下（檔案已不在）' }
-  $sig = Get-AuthenticodeSignature -LiteralPath $p
-  if ($sig.Status -eq 'Valid') { return $null }
-  return '瀏覽器 User Data 底下、沒有有效簽章'
-}
+# Generic variant: other CLSIDs whose in-process server sits where the known dll sits (Get-SuspectComServer, K2F-Common.ps1).
 foreach ($view in 'CLSID', 'WOW6432Node\CLSID') {
-  foreach ($k in Get-ChildItem "HKCU:\Software\Classes\$view" -Force) {
+  foreach ($k in Get-ChildItem "$($hive.Ps)\Software\Classes\$view" -Force -ErrorAction SilentlyContinue) {
     if ($k.PSChildName -ieq $clsid) { continue }
     # Most CLSIDs have no InprocServer32 subkey (LocalServer32/ProgID only); that is normal, not an error.
     $v = [string](Get-ItemProperty (Join-Path $k.PSPath 'InprocServer32') -ErrorAction SilentlyContinue).'(default)'
     $why = Get-SuspectComServer $v
     if (-not $why) { continue }
     $foundKey = $true
-    $key = "HKCU\Software\Classes\$view\$($k.PSChildName)"
+    $key = "$($hive.Reg)\Software\Classes\$view\$($k.PSChildName)"
     $regFile = Join-Path $Quarantine ('hkcu-' + ($view -replace '\\', '-').ToLower() + '-' + $k.PSChildName.Trim('{}') + '.reg')
     Do-It "匯出疑似變種 $key（dll 在$why）到隔離區" { Ensure-Dir $Quarantine; & reg.exe export $key $regFile /y | Out-Null; if ($LASTEXITCODE) { throw "reg export exit $LASTEXITCODE" } }
-    Remove-KeyAfterExport $key "HKCU:\Software\Classes\$view\$($k.PSChildName)"
-    # Step 3 moves only platform_experience_helper.dll* inside PlatformExperienceHelper\<64-hex>; any other target is moved here.
+    Remove-KeyAfterExport $key "$($hive.Ps)\Software\Classes\$view\$($k.PSChildName)"
+    # Step 3 moves whole PlatformExperienceHelper\<64-hex> folders; any other target is moved here.
     $dll = [Environment]::ExpandEnvironmentVariables($v.Trim('"'))
-    if ((Test-Path -LiteralPath $dll -PathType Leaf) -and $dll -notmatch '\\PlatformExperienceHelper\\[0-9a-fA-F]{64}\\platform_experience_helper\.dll[^\\]*$') {
+    if ((Test-Path -LiteralPath $dll -PathType Leaf) -and $dll -notmatch '\\PlatformExperienceHelper\\[0-9a-fA-F]{64}\\[^\\]+$') {
       $dest = Join-Path $Quarantine ('com-dll\' + $k.PSChildName.Trim('{}') + '-' + (Split-Path $dll -Leaf) + '.quarantined')
       Do-It "隔離 $dll" { Ensure-Dir (Split-Path $dest); Move-Item -LiteralPath $dll -Destination $dest -Force -ErrorAction Stop }
     }
@@ -172,24 +131,13 @@ if (@($profiles | Where-Object { -not $_.Current }).Count) { Write-Host '  其�
 
 # 3. browser DLL (Chrome documented; other Chromium browsers inferred, see docs/FACTS.md)
 Step '3. 隔離瀏覽器常駐 dll'
+# Same selector as Check-K2F.ps1 (Get-K2FPehDlls: any *.dll* file not validly signed by Google or Microsoft);
+# the folder holding such a file is moved whole.
 $bad = @()
 foreach ($pf in $profiles) {
-  $browserRoots = @(
-    @{ Name = 'chrome'; Path = "$($pf.Local)\Google\Chrome\User Data" }, @{ Name = 'chrome-beta'; Path = "$($pf.Local)\Google\Chrome Beta\User Data" },
-    @{ Name = 'chrome-sxs'; Path = "$($pf.Local)\Google\Chrome SxS\User Data" }, @{ Name = 'edge'; Path = "$($pf.Local)\Microsoft\Edge\User Data" },
-    @{ Name = 'brave'; Path = "$($pf.Local)\BraveSoftware\Brave-Browser\User Data" }, @{ Name = 'vivaldi'; Path = "$($pf.Local)\Vivaldi\User Data" },
-    @{ Name = 'chromium'; Path = "$($pf.Local)\Chromium\User Data" }, @{ Name = 'opera'; Path = "$($pf.Roaming)\Opera Software\Opera Stable" },
-    @{ Name = 'opera-gx'; Path = "$($pf.Roaming)\Opera Software\Opera GX Stable" })
-  foreach ($br in $browserRoots) {
-    $peh = Join-Path $br.Path 'PlatformExperienceHelper'
-    foreach ($d in Get-ChildItem -LiteralPath $peh -Directory -Force -ErrorAction SilentlyContinue | Where-Object { $_.Name -match '^[0-9a-fA-F]{64}$' }) {
-      $dlls = @(Get-ChildItem -LiteralPath $d.FullName -Filter 'platform_experience_helper.dll*' -Force -ErrorAction SilentlyContinue)
-      if (-not $dlls) { continue }
-      # Same exclusion as Check-K2F.ps1: a folder whose dlls are all validly signed by Google or Microsoft is left alone.
-      $trusted = @($dlls | Where-Object { $s = Get-AuthenticodeSignature -LiteralPath $_.FullName; $s.Status -eq 'Valid' -and "$($s.SignerCertificate.Subject)" -match 'O=(Google LLC|Microsoft Corporation)' })
-      if ($trusted.Count -eq $dlls.Count) { continue }
-      $bad += [pscustomobject]@{ Dir = $d; Tag = "$($pf.Name)-$($br.Name)" }
-    }
+  $hits = @(Get-K2FPehDlls $pf)
+  foreach ($g in ($hits | Group-Object { $_.Dir.FullName })) {
+    $bad += [pscustomobject]@{ Dir = $g.Group[0].Dir; Tag = "$($pf.Name)-$($g.Group[0].Tag)" }
   }
 }
 if ($bad) {
@@ -198,11 +146,19 @@ if ($bad) {
     Do-It "移動 $($d.FullName) 到隔離區（dll 改名 .quarantined）" {
       $dst = Join-Path $Quarantine "peh\$tag\$($d.Name)"; Ensure-Dir (Split-Path $dst)
       Move-Item -LiteralPath $d.FullName -Destination $dst -Force -ErrorAction Stop
-      Get-ChildItem $dst -Recurse -File | Where-Object { $_.Extension -match 'dll|old' } | ForEach-Object { Rename-Item $_.FullName ($_.Name + '.quarantined') }
+      Get-ChildItem -LiteralPath $dst -Recurse -File -Force | Where-Object { $_.Name -like '*.dll*' -or $_.Extension -eq '.old' } | ForEach-Object { Rename-Item -LiteralPath $_.FullName ($_.Name + '.quarantined') -ErrorAction Stop }
     }
   }
   if ($Apply -and $pending) { Write-Host '  dll 可能被瀏覽器鎖住：完成第 2 步後重新開機，再跑一次本腳本。' -ForegroundColor Yellow }
 } else { Write-Host '  沒有 64 碼子資料夾（PlatformExperienceHelper 本身是 Chrome 正常元件，不動）' }
+
+# 3b. installer residue next to Chrome (the same files Check-K2F.ps1 reports)
+$res = @(Get-K2FResidue $profiles)
+foreach ($r in $res) {
+  $rel = ($r.FullName -replace '[:\\]', '_')
+  Do-It "移動木馬安裝殘留 $($r.FullName) 到隔離區（改名 .quarantined）" { $dst = Join-Path $Quarantine "residue\$rel.quarantined"; Ensure-Dir (Split-Path $dst); Move-Item -LiteralPath $r.FullName -Destination $dst -Force -ErrorAction Stop }
+}
+if ($res -and -not $isAdmin) { Write-Host '  Chrome 裝在 Program Files 時，殘留檔要「系統管理員」視窗才能搬。' -ForegroundColor Yellow }
 
 # 4. launcher cache, logs, temp
 Step '4. 隔離啟動器快取與暫存檔，保留紀錄當證據'
@@ -241,22 +197,10 @@ if (-not $tmp) { Write-Host '  TEMP 沒有 k2f 暫存檔' }
 # 5. network block
 Step '5. 封鎖惡意網域與 C2 IP'
 $hostsPath = "$env:SystemRoot\System32\drivers\etc\hosts"
-# A host already mapped to any null address (0.0.0.0, 127.0.0.1, ::1, ::) counts as blocked, same rule as Check-K2F.ps1.
-$blockedNow = @{}
-foreach ($line in (Get-Content $hostsPath -ErrorAction SilentlyContinue)) {
-  $tok = @((($line -replace '#.*$', '').Trim() -split '\s+') | Where-Object { $_ })
-  if ($tok.Count -ge 2 -and $tok[0] -in '0.0.0.0', '127.0.0.1', '::1', '::') { foreach ($h in $tok[1..($tok.Count - 1)]) { $blockedNow[$h.ToLowerInvariant()] = $true } }
-}
-$missing = @('insightjs.com', 'analytics.insightjs.com', 'insightjs.org', 'www.insightjs.com' | Where-Object { -not $blockedNow[$_] } | ForEach-Object { "0.0.0.0 $_" })
-$fwIps = '89.127.233.127', '89.126.250.172'
-# The rule counts only when enabled, outbound, block and covering both IPs; otherwise it is rebuilt.
-function Test-FwRule {
-  $r = Get-NetFirewallRule -DisplayName 'Block K2F C2' -ErrorAction SilentlyContinue | Select-Object -First 1
-  if (-not $r) { return $false }
-  if ("$($r.Enabled)" -ne 'True' -or "$($r.Direction)" -ne 'Outbound' -or "$($r.Action)" -ne 'Block') { return $false }
-  $addr = @(($r | Get-NetFirewallAddressFilter -ErrorAction SilentlyContinue).RemoteAddress)
-  return (@($fwIps | Where-Object { $addr -notcontains $_ }).Count -eq 0)
-}
+# Same hosts and firewall rules as Check-K2F.ps1 (K2F-Common.ps1).
+$blockedNow = Get-K2FHostsBlocked $hostsPath
+$missing = @($K2F_HostsDomains | Where-Object { -not $blockedNow[$_] } | ForEach-Object { "0.0.0.0 $_" })
+$fwIps = $K2F_FwIps
 $fwOff = @(Get-NetFirewallProfile -ErrorAction SilentlyContinue | Where-Object { "$($_.Enabled)" -eq 'False' } | ForEach-Object { $_.Name })
 if ($fwOff) { Write-Host "  注意：Windows 防火牆有關閉的設定檔（$($fwOff -join ', ')），封鎖規則在那裡不會生效。到「Windows 安全性 → 防火牆與網路保護」打開。" -ForegroundColor Yellow }
 if (-not $isAdmin) {
@@ -264,12 +208,12 @@ if (-not $isAdmin) {
   [void]$pending.Add('hosts/firewall block (needs admin)')
 } else {
   if ($missing) { Do-It "hosts 加入：$($missing -join ', ')" { Add-Content -Path $hostsPath -Value (@('', '# NIKKE K2F malware block') + $missing) -Encoding ascii -ErrorAction Stop; ipconfig /flushdns | Out-Null } } else { Write-Host '  hosts 已封鎖' }
-  if (Test-FwRule) { Write-Host '  防火牆規則已存在且內容正確' }
+  if (Test-K2FFwRule) { Write-Host '  防火牆規則已存在且內容正確' }
   else {
     Do-It "防火牆封鎖連出 $($fwIps -join ', ')（既有同名規則內容不對的話先移除再重建）" {
-      Get-NetFirewallRule -DisplayName 'Block K2F C2' -ErrorAction SilentlyContinue | Remove-NetFirewallRule -ErrorAction Stop
-      New-NetFirewallRule -DisplayName 'Block K2F C2' -Direction Outbound -Action Block -RemoteAddress $fwIps -ErrorAction Stop | Out-Null
-      if (-not (Test-FwRule)) { throw 'rule created but verification failed' }
+      Get-NetFirewallRule -DisplayName $K2F_FwRuleName -ErrorAction SilentlyContinue | Remove-NetFirewallRule -ErrorAction Stop
+      New-NetFirewallRule -DisplayName $K2F_FwRuleName -Direction Outbound -Action Block -RemoteAddress $fwIps -ErrorAction Stop | Out-Null
+      if (-not (Test-K2FFwRule)) { throw 'rule created but verification failed' }
     }
   }
 }
@@ -292,7 +236,8 @@ if (-not $plan.Count) {
     $color = if ($p.Ok -eq $false) { 'Red' } else { 'White' }
     Write-Host ('  {0,2}. {1}{2}' -f $i, $mark, $p.Desc) -ForegroundColor $color
   }
-  Write-Host "  搬走的東西都在隔離區 $Quarantine，沒有刪除，可以搬回去還原。" -ForegroundColor DarkGray
+  Write-Host "  搬走的檔案都在隔離區 $Quarantine，沒有刪除，可以搬回去還原。" -ForegroundColor DarkGray
+  Write-Host '  例外（不是「搬走」）：登錄項是先匯出 .reg 再刪除（用 .reg 匯回還原）；hosts 加了封鎖行；防火牆同名規則會移除重建；啟動器程序被結束。' -ForegroundColor DarkGray
   Write-Host '  不會動：遊戲本體、瀏覽器本身、書籤與你的其他檔案。' -ForegroundColor DarkGray
 }
 Write-Host ''

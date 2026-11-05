@@ -18,13 +18,17 @@
   Folder holding the other user profiles to check (default C:\Users). Profiles you cannot read are skipped.
 .PARAMETER HostsPath
   hosts file to read (default the system one). Used by tests.
+.PARAMETER UserSid
+  Check this user's registry (HKU\<SID>) instead of HKCU. Run-K2F.ps1 passes it when the elevated window
+  belongs to a different account than the one that started the check.
 #>
 [CmdletBinding()]
 param(
   [string[]]$InstallPath,
   [string]$ReportPath,
   [string]$UsersRoot = "$env:SystemDrive\Users",
-  [string]$HostsPath = "$env:SystemRoot\System32\drivers\etc\hosts"
+  [string]$HostsPath = "$env:SystemRoot\System32\drivers\etc\hosts",
+  [string]$UserSid
 )
 
 $ErrorActionPreference = 'SilentlyContinue'
@@ -68,69 +72,18 @@ function Read-Latin1([string]$Path) {
 }
 
 # ---------- 0a. user profiles: current user + every readable profile under -UsersRoot ----------
-# Same logic in Remediate-K2F.ps1 (Get-Profiles); change both together.
-$profiles = @([pscustomobject]@{ Name = $env:USERNAME; Roaming = $env:APPDATA; Local = $env:LOCALAPPDATA; Temp = $env:TEMP; Current = $true })
-foreach ($u in Get-ChildItem -LiteralPath $UsersRoot -Directory -Force) {
-  if ($u.Name -in 'Public', 'Default', 'Default User', 'All Users') { continue }
-  if ($u.FullName.TrimEnd('\') -ieq "$env:USERPROFILE".TrimEnd('\')) { continue }
-  $loc = Join-Path $u.FullName 'AppData\Local'
-  if (-not (Test-Path -LiteralPath $loc)) { continue }
-  $profiles += [pscustomobject]@{ Name = $u.Name; Roaming = (Join-Path $u.FullName 'AppData\Roaming'); Local = $loc; Temp = (Join-Path $loc 'Temp'); Current = $false }
-}
+. (Join-Path $PSScriptRoot 'K2F-Common.ps1')
+$pr = Get-K2FProfiles $UsersRoot
+$profiles = $pr.Profiles
+$skippedProfiles = @($pr.Skipped)
+# Registry of the user being checked: HKCU, or HKU\<SID> when an elevated run checks for another account.
+$hive = Get-K2FUserHive $UserSid
 
 # ---------- 0. locate installs ----------
-$roots = @()
-if ($InstallPath) { $roots += $InstallPath }
-# Launcher URL protocol icon (nikkelauncher, HK/MO/TW: nikkelauncherhmt) and the url_protocol.reg the
-# launcher leaves in its data folder; both name the launcher exe (nikke_launcher.exe / nikke_launcher_hmt.exe).
-$exeRx = '[A-Za-z]:\\[^"\r\n]*?\\nikke_launcher[^"\\\r\n]*\.exe'
-foreach ($p in 'nikkelauncher', 'nikkelauncherhmt') {
-  $v = [string](Get-ItemProperty "HKCU:\Software\Classes\$p\DefaultIcon").'(default)'
-  if ($v -match $exeRx) { $roots += (Split-Path $matches[0] -Parent) }
-}
-# Launcher web-view data folders: NIKKE by name, plus any folder holding a tbs_cache (Delta Force Garena:
-# df_garena_launcher). The same list feeds section 2.
-$dataDirs = @($profiles | ForEach-Object {
-  Get-ChildItem -LiteralPath $_.Roaming -Directory -Force | Where-Object { $_.Name -like 'nikke_launcher*' -or (Test-Path -LiteralPath (Join-Path $_.FullName 'tbs_cache')) }
-})
-# Protocol .reg files name the launcher exe: url_protocol.reg inside the folder (NIKKE) or <folder>.reg beside it (Delta Force).
-$regExeRx = '[A-Za-z]:\\[^"\r\n]*?\\[^"\\\r\n]*launcher[^"\\\r\n]*\.exe'
-foreach ($A in $dataDirs) {
-  foreach ($rf in (Join-Path $A.FullName 'url_protocol.reg'), "$($A.FullName).reg") {
-    $t = Get-Content -LiteralPath $rf -Raw
-    if ($t) { foreach ($m in [regex]::Matches(($t -replace '\\\\', '\'), $regExeRx)) { $roots += (Split-Path $m.Value -Parent) } }
-  }
-}
-# Google Play Games build installs to a fixed <drive>:\NIKKE_GOOGLE (G 2026-11-04 23:18 GMT).
-foreach ($d in (Get-PSDrive -PSProvider FileSystem).Root) { if (Test-Path -LiteralPath "${d}NIKKE_GOOGLE") { $roots += "${d}NIKKE_GOOGLE" } }
-foreach ($k in 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*',
-               'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*',
-               'HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*') {
-  Get-ItemProperty $k | Where-Object { $_.DisplayName -match 'NIKKE|Delta Force' -and $_.InstallLocation } |
-    ForEach-Object { $roots += $_.InstallLocation }
-}
-# A root may be the launcher folder itself or its parent. Recorded paths can be stale (uninstalled),
-# so the folder glob runs whenever no root resolves to a launcher, not only when no root was found.
-# Log folder: intl_service (NIKKE) or service with a debug.log (Delta Force Garena).
-function Resolve-Launchers($rs) {
-  $out = @()
-  foreach ($r in ($rs | Where-Object { $_ } | Sort-Object -Unique)) {
-    $r = $r.TrimEnd('\')
-    foreach ($c in $r, "$r\launcher") {
-      if ((Test-Path "$c\intl_service") -or (Test-Path "$c\service\debug.log")) { $out += $c; break }
-    }
-  }
-  $out | Sort-Object -Unique
-}
-$launchers = @(Resolve-Launchers $roots)
-if (-not $launchers) {
-  foreach ($d in (Get-PSDrive -PSProvider FileSystem).Root) {
-    foreach ($g in "$d*NIKKE*", "$d*\*NIKKE*", "$d*\*\*NIKKE*", "$d*Delta Force*", "$d*\*Delta Force*", "$d*\*\*Delta Force*") {
-      Get-Item $g -Force | Where-Object PSIsContainer | ForEach-Object { $roots += $_.FullName }
-    }
-  }
-  $launchers = @(Resolve-Launchers $roots)
-}
+# Install discovery and the data-folder list come from K2F-Common.ps1 (same selectors as Remediate-K2F.ps1).
+$dataDirs = Get-K2FDataDirs $profiles
+$roots = @(Get-K2FInstallCandidates $dataDirs $hive $InstallPath)
+$launchers = @($roots | Where-Object { $_ } | ForEach-Object { Resolve-K2FLauncherDir $_ } | Where-Object { $_ } | Sort-Object -Unique)
 
 # ---------- 1. stage 1: launcher logs ----------
 foreach ($L in $launchers) {
@@ -211,72 +164,43 @@ foreach ($A in $dataDirs) {
 }
 
 # ---------- 3. stage 2: Chrome persistence ----------
-$clsid = '{E77CC89B-7401-4C04-8CED-149DB35ADD04}'
+$clsid = $K2F_Clsid
+$H = $hive.Label   # HKCU, or HKU\<SID>
 foreach ($view in 'CLSID', 'WOW6432Node\CLSID') {   # 64-bit and 32-bit registry views
-  $hk = "HKCU:\Software\Classes\$view\$clsid"
-  [void]$checked.Add("HKCU\Software\Classes\$view\$clsid")
+  $hk = "$($hive.Ps)\Software\Classes\$view\$clsid"
+  [void]$checked.Add("$H\Software\Classes\$view\$clsid")
   if (Test-Path $hk) {
     $v = (Get-ItemProperty "$hk\InprocServer32").'(default)'
-    Add-Finding 'RED' '2' "HKCU 有惡意 COM 劫持項目（$view，指向 $(if ($v) { $v } else { '（無 dll 值）' })）" "HKCU\Software\Classes\$view\$clsid"
+    Add-Finding 'RED' '2' "$H 有惡意 COM 劫持項目（$view，指向 $(if ($v) { $v } else { '（無 dll 值）' })）" "$H\Software\Classes\$view\$clsid"
   }
 }
-# Generic variant (X, IOCS.md): any other HKCU CLSID whose in-process server sits where the known dll sits.
-# Same logic in Remediate-K2F.ps1 (Get-SuspectComServer); change both together.
-function Get-SuspectComServer([string]$Path) {
-  if (-not $Path) { return $null }
-  $p = [Environment]::ExpandEnvironmentVariables($Path.Trim('"'))
-  $dir = Split-Path $p -Parent
-  if ((Split-Path $dir -Leaf) -match '^[0-9a-fA-F]{64}$' -and (Split-Path (Split-Path $dir -Parent) -Leaf) -eq 'PlatformExperienceHelper') {
-    return 'PlatformExperienceHelper\<64 碼> 資料夾'
-  }
-  if ($p -notlike '*\User Data\*') { return $null }
-  if (-not (Test-Path -LiteralPath $p -PathType Leaf)) { return '瀏覽器 User Data 底下（檔案已不在）' }
-  $sig = Get-AuthenticodeSignature -LiteralPath $p
-  if ($sig.Status -eq 'Valid') { return $null }
-  return '瀏覽器 User Data 底下、沒有有效簽章'
-}
+# Generic variant (X, IOCS.md): any other CLSID whose in-process server sits where the known dll sits
+# (Get-SuspectComServer in K2F-Common.ps1, shared with Remediate-K2F.ps1).
 foreach ($view in 'CLSID', 'WOW6432Node\CLSID') {
-  foreach ($k in Get-ChildItem "HKCU:\Software\Classes\$view" -Force) {
+  foreach ($k in Get-ChildItem "$($hive.Ps)\Software\Classes\$view" -Force) {
     if ($k.PSChildName -ieq $clsid) { continue }   # reported above
     $v = [string](Get-ItemProperty (Join-Path $k.PSPath 'InprocServer32')).'(default)'
     $why = Get-SuspectComServer $v
-    if ($why) { Add-Finding 'RED' '2' "HKCU 有疑似變種的 COM 劫持項目（$view，dll 在$why：$v）" "HKCU\Software\Classes\$view\$($k.PSChildName)" }
+    if ($why) { Add-Finding 'RED' '2' "$H 有疑似變種的 COM 劫持項目（$view，dll 在$why：$v）" "$H\Software\Classes\$view\$($k.PSChildName)" }
   }
 }
-[void]$checked.Add('HKCU\Software\Classes\CLSID\* (generic)')
+[void]$checked.Add("$H\Software\Classes\CLSID\* (generic)")
 # Chrome is the documented target (G, B, H). The other Chromium browsers are checked the same way as an
 # inferred extension (hamzzi cleaner v3.8 checks them too; no public sample shows the dll there).
 $peHits = @()
 foreach ($pf in $profiles) {
-  $browserRoots = @(
-    @{ Name = 'Chrome'; Path = "$($pf.Local)\Google\Chrome\User Data" }, @{ Name = 'Chrome Beta'; Path = "$($pf.Local)\Google\Chrome Beta\User Data" },
-    @{ Name = 'Chrome SxS'; Path = "$($pf.Local)\Google\Chrome SxS\User Data" }, @{ Name = 'Edge'; Path = "$($pf.Local)\Microsoft\Edge\User Data" },
-    @{ Name = 'Brave'; Path = "$($pf.Local)\BraveSoftware\Brave-Browser\User Data" }, @{ Name = 'Vivaldi'; Path = "$($pf.Local)\Vivaldi\User Data" },
-    @{ Name = 'Chromium'; Path = "$($pf.Local)\Chromium\User Data" }, @{ Name = 'Opera'; Path = "$($pf.Roaming)\Opera Software\Opera Stable" },
-    @{ Name = 'Opera GX'; Path = "$($pf.Roaming)\Opera Software\Opera GX Stable" })
-  foreach ($br in $browserRoots) {
-    $peh = Join-Path $br.Path 'PlatformExperienceHelper'
-    if (-not (Test-Path -LiteralPath $peh)) { continue }
-    [void]$checked.Add($peh)
-    foreach ($d in Get-ChildItem -LiteralPath $peh -Directory -Force | Where-Object { $_.Name -match '^[0-9a-fA-F]{64}$' }) {
-      foreach ($dll in Get-ChildItem -LiteralPath $d.FullName -File -Force -Filter '*.dll*') {
-        $sig = Get-AuthenticodeSignature -LiteralPath $dll.FullName
-        $signer = if ($sig.SignerCertificate) { $sig.SignerCertificate.Subject } else { 'unsigned' }
-        $h = (Get-FileHash -LiteralPath $dll.FullName -Algorithm SHA256).Hash
-        if ($sig.Status -eq 'Valid' -and $signer -match 'O=(Google LLC|Microsoft Corporation)') { continue }
-        $who = if ($pf.Current) { '' } else { "使用者 $($pf.Name) 的 " }
-        Add-Finding 'RED' '2' "$who$($br.Name) 常駐 dll（簽章：$signer，SHA256 $h）" $dll.FullName
-        $peHits += $dll.FullName
-      }
-    }
+  foreach ($hit in (Get-K2FPehDlls $pf)) {
+    [void]$checked.Add($hit.PehRoot)
+    $sig = Get-AuthenticodeSignature -LiteralPath $hit.File.FullName
+    $signer = if ($sig.SignerCertificate) { $sig.SignerCertificate.Subject } else { 'unsigned' }
+    $h = (Get-FileHash -LiteralPath $hit.File.FullName -Algorithm SHA256).Hash
+    $who = if ($pf.Current) { '' } else { "使用者 $($pf.Name) 的 " }
+    Add-Finding 'RED' '2' "$who$($hit.Browser) 常駐 dll（簽章：$signer，SHA256 $h）" $hit.File.FullName
+    $peHits += $hit.File.FullName
   }
 }
-$appRoots = @("$env:ProgramFiles\Google\Chrome\Application", "${env:ProgramFiles(x86)}\Google\Chrome\Application") + @($profiles | ForEach-Object { "$($_.Local)\Google\Chrome\Application" })
-foreach ($app in ($appRoots | Sort-Object -Unique)) {
-  if (-not (Test-Path -LiteralPath $app)) { continue }
-  # -Path, not -LiteralPath: in PowerShell 5.1 -Include is ignored together with -LiteralPath (every file would match).
-  Get-ChildItem -Path $app -Recurse -Force -Include 'platform_experience_helper.dll.old', 'old-clsid.txt', 'service_util.dll' |
-    ForEach-Object { Add-Finding 'RED' '2' '木馬安裝殘留檔' $_.FullName }
+foreach ($f in (Get-K2FResidue $profiles)) {
+  Add-Finding 'RED' '2' '木馬安裝殘留檔（Remediate-K2F.ps1 會移到隔離區；手動處理的話：先關 Chrome，再刪這個檔案）' $f.FullName
 }
 # Any process, not only chrome.exe: the dll is loaded by whatever instantiates the hijacked COM class.
 foreach ($p in Get-Process) {
@@ -293,25 +217,15 @@ foreach ($td in @($profiles | ForEach-Object { $_.Temp } | Sort-Object -Unique))
 }
 $dns = (ipconfig /displaydns) -match 'insightjs'
 if ($dns) { Add-Finding 'YELLOW' 'net' 'DNS 快取有 insightjs 網域（近期連線過）' 'ipconfig /displaydns' }
-# hosts: a host counts as blocked when any non-comment line maps it to a null address (0.0.0.0, 127.0.0.1, ::1, ::).
-$hostsBlocked = @{}
-foreach ($line in (Get-Content -LiteralPath $HostsPath)) {
-  $tok = @((($line -replace '#.*$', '').Trim() -split '\s+') | Where-Object { $_ })
-  if ($tok.Count -ge 2 -and $tok[0] -in '0.0.0.0', '127.0.0.1', '::1', '::') { foreach ($h in $tok[1..($tok.Count - 1)]) { $hostsBlocked[$h.ToLowerInvariant()] = $true } }
-}
-$hostsMissing = @('insightjs.com', 'analytics.insightjs.com', 'insightjs.org' | Where-Object { -not $hostsBlocked[$_] })
+# hosts and firewall: same rules as Remediate-K2F.ps1 (K2F-Common.ps1).
+$hostsBlocked = Get-K2FHostsBlocked $HostsPath
+$hostsMissing = @($K2F_HostsRequired | Where-Object { -not $hostsBlocked[$_] })
 $blocked = $hostsMissing.Count -eq 0
-# Firewall: a rule counts only if it is enabled, outbound, block, and covers both C2 IPs.
-$fwIps = '89.127.233.127', '89.126.250.172'
-$fwBlocked = $false
-foreach ($r in @(Get-NetFirewallRule -DisplayName 'Block K2F C2', 'NIKKE k2f block' -ErrorAction SilentlyContinue)) {
-  if ("$($r.Enabled)" -ne 'True' -or "$($r.Direction)" -ne 'Outbound' -or "$($r.Action)" -ne 'Block') { continue }
-  $addr = @(($r | Get-NetFirewallAddressFilter).RemoteAddress)
-  if (@($fwIps | Where-Object { $addr -notcontains $_ }).Count -eq 0) { $fwBlocked = $true }
-}
+$fwBlocked = Test-K2FFwRule
 $fwOff = @(Get-NetFirewallProfile | Where-Object { "$($_.Enabled)" -eq 'False' } | ForEach-Object { $_.Name })
-$running = @(Get-Process | Where-Object { $_.Name -match '^(nikke_launcher|df_garena_launcher|tbs_browser|intl_service|INTLWebViewHelper)' })
-if ($running) { Add-Finding 'YELLOW' 'live' "啟動器程序正在執行：$(($running | ForEach-Object Name | Sort-Object -Unique) -join ', ')" 'Get-Process' }
+# A running launcher is normal on a clean machine: information only, it changes no verdict.
+$running = @(Get-Process -Name $K2F_LauncherProcs -ErrorAction SilentlyContinue)
+if ($running) { Add-Finding 'INFO' 'live' "啟動器程序正在執行：$(($running | ForEach-Object Name | Sort-Object -Unique) -join ', ')（這本身不是中毒痕跡；檢查前先關掉，檔案才讀得到）" 'Get-Process' }
 $def = @(Get-MpThreatDetection)
 
 # ---------- report ----------
@@ -330,6 +244,8 @@ if ($timeline.Count) {
 }
 Write-Host ''
 Write-Host "已檢查使用者資料夾：$($profiles.Count) 個（$(($profiles | ForEach-Object { $_.Name }) -join ', ')）"
+if ($skippedProfiles.Count) { Write-Host "  另有 $($skippedProfiles.Count) 個使用者資料夾讀不到、沒檢查（$($skippedProfiles -join ', ')）：要用系統管理員視窗跑才查得到。" -ForegroundColor Yellow }
+if ($hive.Label -ne 'HKCU') { Write-Host "  登錄檢查的是 $($hive.Label)（啟動檢查的那個帳號），不是這個系統管理員視窗自己的 HKCU。" -ForegroundColor DarkGray }
 if (@($profiles | Where-Object { -not $_.Current }).Count) { Write-Host '  其他使用者的登錄（HKCU）要用該帳號登入再跑一次才查得到。' -ForegroundColor DarkGray }
 Write-Host ("hosts 封鎖 insightjs：{0}" -f $(if ($blocked) { '已封鎖' } else { "未封鎖（缺 $($hostsMissing -join ', ')）" }))
 Write-Host ("防火牆封鎖 C2 IP：{0}" -f $(if ($fwBlocked) { '已封鎖' } else { '未封鎖（規則不存在、停用，或沒涵蓋兩個 IP）' }))
@@ -368,7 +284,7 @@ if ($ReportPath) {
     UnreadableCount = $unreadable.Count; Unreadable = $unreadable
     Launchers = $launchers; Findings = $findings; Timeline = $tl
     Agent = $agentInfo; HostsBlocked = $blocked; FirewallBlocked = $fwBlocked; FirewallProfilesOff = $fwOff
-    Profiles = @($profiles | ForEach-Object { $_.Name }); DefenderDetections = $def.Count; Checked = $checked
+    Profiles = @($profiles | ForEach-Object { $_.Name }); SkippedProfiles = $skippedProfiles; RegistryHive = $hive.Label; DefenderDetections = $def.Count; Checked = $checked
   } | ConvertTo-Json -Depth 5 | Out-File -LiteralPath $ReportPath -Encoding utf8
   Write-Host "報告已寫入：$ReportPath"
 }
