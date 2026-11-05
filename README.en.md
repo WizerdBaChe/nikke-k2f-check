@@ -35,6 +35,7 @@ Check only: `nikke-k2f-check.cmd check`. The file carries this repo's three Powe
 - The author checked their own Garena launcher (installed in August, last opened 09-09): its logs, web cache and binaries contain none of the tampered URLs, the 4 files or any K2F indicator.
 - The circulating list of affected games refers to Delta Force **global / Steam**. From Taiwan without a VPN the author could only find the Garena edition, not the Steam one.
 - Not verified: Garena launcher builds after 09-27 (the author did not update, to avoid the risk; the web host it used no longer resolves, so it cannot be compared online), and the global / Steam builds (none available to test).
+- Official status (11-05): the NIKKE publisher's second notice covers NIKKE only; Delta Force, Garena and Tencent have made no statement either way. For Delta Force **China** (mainland edition) no infection report, forum case or official word was found. Fatshark, also Tencent-owned, said officially that its launchers do not use that CDN and are unaffected. Details and sources: [FACTS.md](docs/FACTS.md), section 其他遊戲.
 
 ## Wuthering Waves players
 
@@ -49,6 +50,8 @@ Check only: `nikke-k2f-check.cmd check`. The file carries this repo's three Powe
 ## What happened
 
 From 2026-09-27, four JavaScript files on Level Infinite's CDN were tampered with. The NIKKE PC launcher loads them on start, and some players got a remote-access trojan (K2F) that steals browser passwords and cookies, the saved NIKKE login, SSH and API keys, crypto wallets, and can run any command. The publisher announced a fix on 2026-11-04, but **a PC that was already infected does not become clean by updating**.
+
+The second official notice (2026-11-05) gives a timeline and manual steps, promises in-game compensation, takes reports of account and financial damage through customer support, and says that from 2026-11-05 08:00 UTC+9 the official PC client detects and deletes this malware on launch. **That deletion removes the evidence too**: run this checker before you open the launcher if you want to know how far the infection got, and rotate your passwords either way. The Google Play Games PC build (`C:\NIKKE_GOOGLE`) was hit as well; the checker finds it.
 
 ## What you get
 
