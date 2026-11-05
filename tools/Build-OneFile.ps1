@@ -1,8 +1,10 @@
 ﻿<#
 .SYNOPSIS
-  Builds dist\nikke-k2f-check.cmd: one double-clickable file that carries Run-K2F.ps1, Check-K2F.ps1 and
-  Remediate-K2F.ps1 (base64, each with its SHA-256), writes them to a new %TEMP%\nikke-k2f-check-<stamp>-<random>\,
-  re-hashes them from disk and runs Run-K2F.ps1. Nothing is downloaded at run time. The output is pure ASCII with CRLF line endings.
+  Builds dist\nikke-k2f-check.cmd: one double-clickable file that carries Run-K2F.ps1, Check-K2F.ps1,
+  Remediate-K2F.ps1 and K2F-Common.ps1 (base64, each with its SHA-256), writes them to a new
+  %TEMP%\nikke-k2f-check-<stamp>-<random>\, re-hashes them from disk and runs Run-K2F.ps1 with the embedded hashes in
+  K2F_HASHES (the elevated half checks its admin-only copies against them). Nothing is downloaded at run time.
+  The output is pure ASCII with CRLF line endings.
 .PARAMETER Out
   Output path (default dist\nikke-k2f-check.cmd under the repo).
 #>
@@ -12,7 +14,7 @@ param([string]$Out)
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path $PSScriptRoot -Parent
 if (-not $Out) { $Out = Join-Path $repo 'dist\nikke-k2f-check.cmd' }
-$names = 'Run-K2F.ps1', 'Check-K2F.ps1', 'Remediate-K2F.ps1'
+$names = 'Run-K2F.ps1', 'Check-K2F.ps1', 'Remediate-K2F.ps1', 'K2F-Common.ps1'
 $sha = [Security.Cryptography.SHA256]::Create()
 function Hex([byte[]]$b) { -join ($sha.ComputeHash($b) | ForEach-Object { $_.ToString('x2') }) }
 
@@ -46,6 +48,8 @@ foreach ($m in $ms) {
   $got = -join ($h.ComputeHash([IO.File]::ReadAllBytes((Join-Path $dir $m.Groups[1].Value))) | ForEach-Object { $_.ToString('x2') })
   if ($got -ne $m.Groups[2].Value) { Write-Host "$($m.Groups[1].Value) changed on disk after it was written ($dir). Not running it." -ForegroundColor Red; exit 92 }
 }
+# The elevated half verifies its copies against these embedded hashes (the release the user compared), not against the TEMP files.
+$env:K2F_HASHES = ($ms | ForEach-Object { "$($_.Groups[1].Value)=$($_.Groups[2].Value)" }) -join ';'
 $a =@('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', (Join-Path $dir 'Run-K2F.ps1'))
 if ($Mode -eq 'check') { $a += '-CheckOnly' }
 & (Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe') @a
@@ -56,7 +60,7 @@ $boot = $boot.Replace('@STAMP@', $stamp).Replace('@COUNT@', "$($names.Count)") -
 $head = @(
   '@echo off'
   "rem nikke-k2f-check one-file launcher, build $stamp. Source and how it works: https://github.com/WizerdBaChe/nikke-k2f-check"
-  'rem Carries Run-K2F.ps1, Check-K2F.ps1 and Remediate-K2F.ps1 (base64 + SHA-256 below). It writes them to %TEMP% and runs them;'
+  'rem Carries Run-K2F.ps1, Check-K2F.ps1, Remediate-K2F.ps1 and K2F-Common.ps1 (base64 + SHA-256 below). It writes them to %TEMP% and runs them;'
   'rem nothing is downloaded. It only reads unless you answer Y twice. Add "check" to only check: nikke-k2f-check.cmd check'
   'setlocal'
   'set "K2F_SELF=%~f0"'
